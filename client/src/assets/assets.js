@@ -65,8 +65,8 @@ export const dummyStoriesData = [
         "media_url": "",
         "media_type": "text",
         "background_color": "#4f46e5",
-        "createdAt": "2025-07-25T08:16:06.958Z",
-        "updatedAt": "2025-07-25T08:16:06.958Z",
+        "createdAt": "2026-08-31T08:16:06.958Z",
+        "updatedAt": "2026-08-31T08:16:06.958Z",
     },
     {
         "_id": "688340046e4b42b685068a73",
@@ -75,8 +75,8 @@ export const dummyStoriesData = [
         "media_url": "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
         "media_type": "image",
         "background_color": "#4f46e5",
-        "createdAt": "2025-07-25T08:27:48.134Z",
-        "updatedAt": "2025-07-25T08:27:48.134Z",
+        "createdAt": "2026-08-31T08:16:06.958Z",
+        "updatedAt": "2026-08-31T08:16:06.958Z",
     },
     {
         "_id": "68833fe96e4b42b685068a5e",
@@ -85,8 +85,8 @@ export const dummyStoriesData = [
         "media_url": "https://videos.pexels.com/video-files/14447442/14447442-hd_1080_1920_30fps.mp4",
         "media_type": "video",
         "background_color": "#4f46e5",
-        "createdAt": "2025-07-25T08:27:21.289Z",
-        "updatedAt": "2025-07-25T08:27:21.289Z",
+        "createdAt": "2026-08-31T08:16:06.958Z",
+        "updatedAt": "2026-08-31T08:16:06.958Z",
     },
     {
         "_id": "68833e136e4b42b685068937",

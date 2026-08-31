@@ -11,6 +11,7 @@ import ChatBox from "./pages/Chatbox.jsx";
 import Connections from "./pages/Connections.jsx";
 import CreatePost from "./pages/createpost.jsx";
 import Layout from "./pages/layout.jsx";
+import {Toaster}  from "react-hot-toast"
 
 const App = () => {
   const { user, isLoaded } = useUser();
@@ -20,6 +21,8 @@ const App = () => {
   }
 
   return (
+    <>
+    <Toaster />
     <Routes>
       <Route path="/" element={user ? <Layout /> : <Login />}>
         <Route index element={<Feed />} />
@@ -33,6 +36,7 @@ const App = () => {
         <Route path="create-post" element={<CreatePost />} />
       </Route>
     </Routes>
+    </>
   );
 };
 

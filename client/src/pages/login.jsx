@@ -1,7 +1,7 @@
 import React from "react";
 import assets from "../assets/assets.js";
 import { Star } from "lucide-react";
-
+import {SignIn} from "@clerk/clerk-react";
 const Login = () => {
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -76,7 +76,7 @@ const Login = () => {
 
         {/* Right Side - 50% */}
         <div className="flex items-center justify-center p-6 sm:p-10">
-          {/* Login content will go here */}
+        <SignIn />
         </div>
 
       </div>

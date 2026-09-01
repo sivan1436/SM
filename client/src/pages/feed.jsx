@@ -2,7 +2,7 @@ import react, { useState } from "react";
 import { useEffect } from "react";
 import { dummyPostsData } from "../assets/assets";
 import Loading from "../Components/loading";
-import Stories from "../Components/Storieswalt";
+import Stories from "../Components/StoriesBar";
 
 function Feed() {
   const [Feed,setFeed] = useState([])

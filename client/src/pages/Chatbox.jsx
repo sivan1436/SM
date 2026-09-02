@@ -10,6 +10,8 @@ import {
   X,
   Mic,
   Square,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 
 function ChatBox() {
@@ -52,7 +54,6 @@ function ChatBox() {
 
     setImages((prev) => [...prev, ...validFiles]);
 
-    // Allow selecting the same file again
     e.target.value = "";
   };
 
@@ -63,7 +64,7 @@ function ChatBox() {
     );
   };
 
-  // Start voice recording
+  // Start recording
   const startRecording = async () => {
     try {
       const stream =
@@ -94,7 +95,6 @@ function ChatBox() {
 
         setAudio(audioBlob);
 
-        // Stop microphone
         stream.getTracks().forEach((track) => {
           track.stop();
         });
@@ -107,13 +107,14 @@ function ChatBox() {
       setIsRecording(true);
     } catch (error) {
       console.error("Microphone error:", error);
+
       alert(
         "Microphone permission is required to record voice messages."
       );
     }
   };
 
-  // Stop voice recording
+  // Stop recording
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
@@ -121,15 +122,30 @@ function ChatBox() {
     }
   };
 
-  // Remove recorded audio
+  // Remove audio
   const removeAudio = () => {
     setAudio(null);
   };
 
   // Send message
   async function sendMessage() {
-   
-  
+    if (
+      !text.trim() &&
+      images.length === 0 &&
+      !audio
+    ) {
+      return;
+    }
+
+    // Backend/API logic will go here
+
+    console.log("Text:", text);
+    console.log("Images/Videos:", images);
+    console.log("Audio:", audio);
+
+    setText("");
+    setImages([]);
+    setAudio(null);
   }
 
   // Scroll to latest message
@@ -139,7 +155,7 @@ function ChatBox() {
     });
   }, [messages]);
 
-  // Cleanup microphone when component unmounts
+  // Cleanup microphone
   useEffect(() => {
     return () => {
       if (audioStreamRef.current) {
@@ -152,7 +168,7 @@ function ChatBox() {
 
   return (
     user && (
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-screen bg-[#efeae2]">
 
         {/* User Header */}
         <div
@@ -160,9 +176,8 @@ function ChatBox() {
             navigate(`/profile/${user._id}`)
           }
           className="flex items-center gap-2 p-2 md:px-10 xl:pl-42
-          bg-gradient-to-r from-indigo-50 to-purple-50
-          border border-gray-300 cursor-pointer
-          hover:bg-indigo-100 transition"
+          bg-white border-b border-gray-300
+          cursor-pointer hover:bg-gray-50 transition"
         >
           <img
             src={user.profile_picture}
@@ -171,11 +186,11 @@ function ChatBox() {
           />
 
           <div>
-            <p className="font-medium">
+            <p className="font-medium text-slate-800">
               {user.full_name}
             </p>
 
-            <p className="text-sm text-gray-500 mt-1.5">
+            <p className="text-sm text-gray-500">
               @{user.username}
             </p>
           </div>
@@ -183,7 +198,7 @@ function ChatBox() {
 
         {/* Messages */}
         <div className="p-5 md:px-10 flex-1 overflow-y-scroll">
-          <div className="space-y-4 max-w-4xl mx-auto">
+          <div className="space-y-3 max-w-4xl mx-auto">
 
             {messages
               .toSorted(
@@ -191,59 +206,127 @@ function ChatBox() {
                   new Date(a.createdAt) -
                   new Date(b.createdAt)
               )
-              .map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex flex-col ${
-                    message.to_user_id !== user._id
-                      ? "items-start"
-                      : "items-end"
-                  }`}
-                >
+              .map((message, index) => {
+
+                const isSent =
+                  message.to_user_id === user._id;
+
+                return (
                   <div
-                    className={`p-2 text-sm max-w-sm bg-white
-                    text-slate-700 rounded-lg shadow ${
-                      message.to_user_id !== user._id
-                        ? "rounded-bl-none"
-                        : "rounded-br-none"
+                    key={index}
+                    className={`flex ${
+                      isSent
+                        ? "justify-end"
+                        : "justify-start"
                     }`}
                   >
 
-                    {/* Image Message */}
-                    {message.message_type === "image" && (
-                      <img
-                        src={message.media_url}
-                        className="w-full max-w-sm rounded-lg mb-1"
-                        alt=""
-                      />
-                    )}
+                    <div
+                      className={`relative max-w-sm px-3 py-2
+                      rounded-lg shadow-sm ${
+                        isSent
+                          ? "bg-[#d9fdd3] rounded-br-none"
+                          : "bg-white rounded-bl-none"
+                      }`}
+                    >
 
-                    {/* Video Message */}
-                    {message.message_type === "video" && (
-                      <video
-                        src={message.media_url}
-                        controls
-                        className="w-full max-w-sm rounded-lg mb-1"
-                      />
-                    )}
+                      {/* Image */}
+                      {message.message_type ===
+                        "image" && (
+                        <img
+                          src={message.media_url}
+                          alt=""
+                          className="max-w-full rounded-lg mb-1"
+                        />
+                      )}
 
-                    {/* Audio Message */}
-                    {message.message_type === "audio" && (
-                      <audio
-                        src={message.media_url}
-                        controls
-                        className="max-w-full"
-                      />
-                    )}
+                      {/* Video */}
+                      {message.message_type ===
+                        "video" && (
+                        <video
+                          src={message.media_url}
+                          controls
+                          className="max-w-full rounded-lg mb-1"
+                        />
+                      )}
 
-                    {/* Text Message */}
-                    {message.text && (
-                      <p>{message.text}</p>
-                    )}
+                      {/* Audio */}
+                      {message.message_type ===
+                        "audio" && (
+                        <audio
+                          src={message.media_url}
+                          controls
+                          className="max-w-full"
+                        />
+                      )}
 
+                      {/* Text */}
+                      {message.text && (
+                        <p className="text-sm text-slate-800">
+                          {message.text}
+                        </p>
+                      )}
+
+                      {/* Message Time + Read Status */}
+                      {isSent && (
+                        <div
+                          className="flex items-center
+                          justify-end gap-1 mt-1"
+                        >
+
+                          <span className="text-[10px]
+                          text-gray-500">
+                            {message.createdAt
+                              ? new Date(
+                                  message.createdAt
+                                ).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )
+                              : ""}
+                          </span>
+
+                          {/* WhatsApp-style ticks */}
+                          {message.is_read ? (
+                            <CheckCheck
+                              className="w-4 h-4
+                              text-[#53bdeb]"
+                            />
+                          ) : (
+                            <Check
+                              className="w-4 h-4
+                              text-gray-500"
+                            />
+                          )}
+
+                        </div>
+                      )}
+
+                      {/* Time for received message */}
+                      {!isSent && (
+                        <div className="text-[10px]
+                        text-gray-500 text-right mt-1">
+                          {message.createdAt
+                            ? new Date(
+                                message.createdAt
+                              ).toLocaleTimeString(
+                                [],
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )
+                            : ""}
+                        </div>
+                      )}
+
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
             <div ref={messagesEndRef} />
 
@@ -251,53 +334,59 @@ function ChatBox() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4">
+        <div className="p-4 bg-[#efeae2]">
           <div className="w-full max-w-xl mx-auto">
 
-            {/* Selected Media Preview */}
+            {/* Selected Images/Videos */}
             {images.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2 p-2">
-
+              <div
+                className="flex flex-wrap gap-2
+                mb-2 p-2"
+              >
                 {images.map((file, index) => {
+
                   const previewUrl =
                     URL.createObjectURL(file);
 
                   return (
                     <div
                       key={index}
-                      className="relative group"
+                      className="relative"
                     >
 
-                      {/* Video */}
-                      {file.type.startsWith("video/") ? (
+                      {file.type.startsWith(
+                        "video/"
+                      ) ? (
                         <video
                           src={previewUrl}
-                          className="w-24 h-24 object-cover
-                          rounded-lg border"
                           controls
+                          className="w-24 h-24
+                          object-cover rounded-lg
+                          border"
                         />
                       ) : (
-
-                        /* Image */
                         <img
                           src={previewUrl}
-                          alt="Selected"
-                          className="w-24 h-24 object-cover
-                          rounded-lg border"
+                          alt=""
+                          className="w-24 h-24
+                          object-cover rounded-lg
+                          border"
                         />
                       )}
 
-                      {/* Remove Media */}
+                      {/* Remove */}
                       <button
                         type="button"
                         onClick={() =>
                           removeImage(index)
                         }
-                        className="absolute -top-2 -right-2
-                        flex items-center justify-center
+                        className="absolute
+                        -top-2 -right-2
+                        flex items-center
+                        justify-center
                         w-6 h-6 rounded-full
                         bg-gray-700 text-white
-                        hover:bg-red-500 transition
+                        hover:bg-red-500
                         cursor-pointer"
                       >
                         <X className="size-4" />
@@ -306,29 +395,29 @@ function ChatBox() {
                     </div>
                   );
                 })}
-
               </div>
             )}
 
             {/* Audio Preview */}
             {audio && (
-              <div className="relative flex items-center
-              gap-2 mb-2 p-2 w-fit bg-gray-100
-              rounded-lg">
+              <div
+                className="relative flex items-center
+                gap-2 mb-2 p-2 w-fit
+                bg-white rounded-lg shadow"
+              >
 
                 <audio
                   src={URL.createObjectURL(audio)}
                   controls
                 />
 
-                {/* Remove Audio */}
                 <button
                   type="button"
                   onClick={removeAudio}
-                  className="flex items-center justify-center
-                  w-7 h-7 rounded-full
-                  bg-gray-700 text-white
-                  hover:bg-red-500 transition
+                  className="flex items-center
+                  justify-center w-7 h-7
+                  rounded-full bg-gray-700
+                  text-white hover:bg-red-500
                   cursor-pointer"
                 >
                   <X className="size-4" />
@@ -339,12 +428,15 @@ function ChatBox() {
 
             {/* Recording Indicator */}
             {isRecording && (
-              <div className="flex items-center gap-2
-              mb-2 px-3 py-2 w-fit
-              bg-red-50 text-red-500 rounded-lg">
-
-                <span className="w-2 h-2 bg-red-500
-                rounded-full animate-pulse" />
+              <div
+                className="flex items-center gap-2
+                mb-2 px-3 py-2 w-fit
+                bg-red-50 text-red-500 rounded-lg"
+              >
+                <span
+                  className="w-2 h-2 bg-red-500
+                  rounded-full animate-pulse"
+                />
 
                 <span className="text-sm font-medium">
                   Recording...
@@ -354,19 +446,21 @@ function ChatBox() {
 
             {/* Input Box */}
             <div
-              className="flex items-center gap-3 pl-5 p-1.5
-              bg-white w-full border border-gray-200
-              shadow rounded-full"
+              className="flex items-center gap-3
+              px-4 py-2 bg-white
+              border border-gray-200
+              shadow-sm rounded-full"
             >
 
-              {/* Image / Video Selector */}
+              {/* Image / Video */}
               <label
                 htmlFor="images"
                 className="cursor-pointer"
               >
                 <ImageIcon
-                  className="size-7 text-gray-400
-                  hover:text-gray-600 transition"
+                  className="size-6
+                  text-gray-500
+                  hover:text-gray-700"
                 />
 
                 <input
@@ -379,37 +473,38 @@ function ChatBox() {
                 />
               </label>
 
-              {/* Text Input */}
+              {/* Text */}
               <input
                 type="text"
                 className="flex-1 outline-none
                 text-slate-700"
                 placeholder={
                   isRecording
-                    ? "Recording voice..."
-                    : "type a message..."
+                    ? "Recording..."
+                    : "Type a message..."
                 }
                 disabled={isRecording}
+                value={text}
+                onChange={(e) =>
+                  setText(e.target.value)
+                }
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     sendMessage();
                   }
                 }}
-                onChange={(e) =>
-                  setText(e.target.value)
-                }
-                value={text}
               />
 
-              {/* Microphone */}
+              {/* Mic */}
               {isRecording ? (
                 <button
                   type="button"
                   onClick={stopRecording}
                   className="p-2 rounded-full
-                  bg-red-500 hover:bg-red-600
+                  bg-red-500 text-white
+                  hover:bg-red-600
                   active:scale-90 transition
-                  text-white cursor-pointer"
+                  cursor-pointer"
                 >
                   <Square className="size-5" />
                 </button>
@@ -418,7 +513,7 @@ function ChatBox() {
                   type="button"
                   onClick={startRecording}
                   className="p-2 rounded-full
-                  text-gray-500 hover:text-gray-700
+                  text-gray-500
                   hover:bg-gray-100
                   active:scale-90 transition
                   cursor-pointer"
@@ -427,15 +522,18 @@ function ChatBox() {
                 </button>
               )}
 
-              {/* Send Button */}
+              {/* Send */}
               <button
+                type="button"
                 onClick={sendMessage}
                 disabled={isRecording}
-                className="p-2 mr-1 rounded-full
-                text-gray-700 hover:text-black
+                className="p-2 rounded-full
+                text-gray-700
                 hover:bg-gray-100
-                active:scale-90 transition-all
-                cursor-pointer disabled:opacity-40"
+                hover:text-black
+                active:scale-90
+                transition cursor-pointer
+                disabled:opacity-40"
               >
                 <SendHorizonal className="size-5" />
               </button>

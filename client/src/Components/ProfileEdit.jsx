@@ -29,7 +29,7 @@ function ProfileEdit({ setShowEdit }) {
                         Edit Profile
                     </h1>
 
-                    <form
+                    <form 
                         className="space-y-4"
                         onSubmit={handleSaveProfile}
                     >
@@ -173,7 +173,7 @@ function ProfileEdit({ setShowEdit }) {
                         onClick={()=>setShowEdit(false)}>
                          Cancel
                         </button>
-                           <button onChange={handleSaveProfile()} 
+                           <button type="submit"
                            className="px-4 py-2 bg-gradient-to-r form-indigo-500
                            to-purple-600 text-white rounded-lg hover:from-indigo-600
                            hover:to-purple-700 transition cursor-pointer" >

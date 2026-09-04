@@ -8,11 +8,12 @@ function Messages() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const email = localStorage.getItem("scrink-user-email");
-
     async function loadMessages() {
       try {
-        const response = await fetch(`/api/messages?email=${encodeURIComponent(email || "")}`);
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/messages", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -40,8 +41,8 @@ function Messages() {
             messages
           </h1>
 
-          <p className="text-slate-600">
-            connect with your loved people
+            <p className="text-slate-600">
+            Chat with your followers and people you follow
           </p>
         </div>
 
@@ -93,7 +94,7 @@ function Messages() {
           })}
 
           {!isLoading && !error && conversations.length === 0 && (
-            <p className="text-slate-500">No conversations yet.</p>
+            <p className="text-slate-500">No followers or following users yet.</p>
           )}
         </div>
 

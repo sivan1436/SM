@@ -1,8 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  dummyConnectionsData,
-  dummyMessagesData,
-} from "../assets/assets";
+import { useEffect, useRef, useState } from "react";
+import { dummyMessagesData } from "../assets/assets";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ImageIcon,
@@ -23,6 +20,7 @@ function ChatBox() {
   const [audio, setAudio] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [user, setUser] = useState(null);
+  const [loadError, setLoadError] = useState("");
 
   const messagesEndRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -31,13 +29,26 @@ function ChatBox() {
 
   const messages = dummyMessagesData;
 
-  // Find selected user
   useEffect(() => {
-    const selectedUser = dummyConnectionsData.find(
-      (user) => user._id === userId
-    );
+    async function loadUser() {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`/api/messages/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
 
-    setUser(selectedUser);
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Unable to load user");
+        }
+
+        setUser(data.user);
+      } catch (error) {
+        setLoadError(error.message);
+      }
+    }
+
+    loadUser();
   }, [userId]);
 
   // Select multiple images/videos
@@ -167,7 +178,9 @@ function ChatBox() {
   }, []);
 
   return (
-    user && (
+    loadError ? (
+      <div className="p-6 text-red-500">{loadError}</div>
+    ) : user && (
       <div className="flex flex-col h-screen bg-[#efeae2]">
 
         {/* User Header */}

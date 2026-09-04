@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { dummyConnectionsData } from "../assets/assets.js";
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -86,11 +86,19 @@ function Discover() {
         {!loading && (
           <div className="flex flex-wrap gap-6">
             {users.map((user) => (
-              <Link
-                to={`/profile/${user._id}`}
-                key={user._id}
-              >
-                <UserCard user={user} />
+              <Link to={`/profile/${user._id}`} key={user._id}>
+                <UserCard
+                  user={user}
+                  onUserUpdated={(updatedUser) => {
+                    setUsers((currentUsers) =>
+                      currentUsers.map((currentUser) =>
+                        currentUser._id === updatedUser._id
+                          ? updatedUser
+                          : currentUser
+                      )
+                    );
+                  }}
+                />
               </Link>
             ))}
           </div>

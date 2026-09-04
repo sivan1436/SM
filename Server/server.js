@@ -5,7 +5,9 @@ import cors from "cors";
 import messageRoutes from "./Routes/messageRoutes.js";
 import authRoutes from "./Routes/authRoutes.js"
 import userRoutes from "./Routes/userRoutes.js";
+import connectionRoutes from "./Routes/connectionRoutes.js";
 import path from "path";
+import { fileURLToPath } from "url";
 
 await dotenv.config();
 if (!process.env.JWT_SECRET) {
@@ -13,12 +15,14 @@ if (!process.env.JWT_SECRET) {
 }
 const PORT = process.env.PORT || 3000;
 const app = express();
+const uploadDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "uploads");
 await ConnectDB();
 app.use(express.json());
 app.use(cors());
-app.use("/uploads", express.static(path.resolve("uploads")));
+app.use("/uploads", express.static(uploadDirectory));
 app.use("/api/messages", messageRoutes);
 app.use("/api/users",userRoutes)
+app.use("/api/connections", connectionRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server is running!");

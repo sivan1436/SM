@@ -23,7 +23,12 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-
+    password : {
+      type: String,
+      required : true,
+      min : 8,
+    },
+   
     bio: {
       type: String,
       default: "",

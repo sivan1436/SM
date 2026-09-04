@@ -16,15 +16,28 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/health");
-      if (!response.ok) {
-        throw new Error("Backend unavailable");
-      }
+      const response = await fetch("/api/auth/login",
+        {
+        method : "POST",
+        headers:{"Content-Type" : "application/json",},
+        body : JSON.stringify({
+          email : email,
+          password : password
 
-      localStorage.setItem("scrink-signed-in", "true");
-      localStorage.setItem("scrink-user-email", email);
+        })
+        }
+
+      );
+      const data = await response.json()
+      if( !data.success){
+        setError(data.message)
+        return
+      }
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.token);
       navigate("/feed", { replace: true });
-    } catch {
+    } catch 
+    {
       setError("We could not sign you in. Please try again.");
     } finally {
       setIsSubmitting(false);

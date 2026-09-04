@@ -1,9 +1,34 @@
-import React from "react";
-import { dummyConnectionsData, dummyMessagesData } from "../assets/assets";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Messages() {
   const navigate = useNavigate();
+  const [conversations, setConversations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const email = localStorage.getItem("scrink-user-email");
+
+    async function loadMessages() {
+      try {
+        const response = await fetch(`/api/messages?email=${encodeURIComponent(email || "")}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Unable to load messages");
+        }
+
+        setConversations(data);
+      } catch (loadError) {
+        setError(loadError.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadMessages();
+  }, []);
 
   return (
     <div className="min-h-screen relative bg-slate-50">
@@ -22,19 +47,15 @@ function Messages() {
 
         {/* connected users */}
         <div className="flex flex-col gap-3">
-          {dummyConnectionsData.map((user) => {
+          {isLoading && (
+            <p className="text-slate-500">Loading messages...</p>
+          )}
 
-            const lastMessage = dummyMessagesData
-              .filter(
-                (message) =>
-                  message.sender_id === user._id ||
-                  message.receiver_id === user._id
-              )
-              .sort(
-                (a, b) =>
-                  new Date(b.createdAt) - new Date(a.createdAt)
-              )[0];
+          {!isLoading && error && (
+            <p className="text-red-500">{error}</p>
+          )}
 
+          {!isLoading && !error && conversations.map(({ user, lastMessage }) => {
             return (
               <div
                 key={user._id}
@@ -63,13 +84,17 @@ function Messages() {
 
                   {/* Last Message */}
                   <p className="text-sm text-gray-500 truncate mt-1">
-                    {lastMessage?.text || "No messages yet"}
+                    {lastMessage?.text || (lastMessage ? "Media" : "No messages yet")}
                   </p>
                 </div>
 
               </div>
             );
           })}
+
+          {!isLoading && !error && conversations.length === 0 && (
+            <p className="text-slate-500">No conversations yet.</p>
+          )}
         </div>
 
       </div>

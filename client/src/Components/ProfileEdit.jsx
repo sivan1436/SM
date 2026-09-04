@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { dummyUserData } from "../assets/assets";
-import { Hand, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
+import toast from "react-hot-toast";
 
-function ProfileEdit({ setShowEdit }) {
-    const user = dummyUserData;
+function ProfileEdit({ user, setUser, setShowEdit }) {
 
     const [editform, setEditform] = useState({
         username: user.username,
@@ -16,6 +15,45 @@ function ProfileEdit({ setShowEdit }) {
 
     async function handleSaveProfile(e) {
         e.preventDefault();
+        const token = localStorage.getItem("token");
+
+        if (!token || !user?._id) {
+            toast.error("Please sign in again to edit your profile.");
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("full_name", editform.full_name);
+            formData.append("username", editform.username);
+            formData.append("bio", editform.bio || "");
+            formData.append("location", editform.location || "");
+
+            if (editform.profile_picture instanceof File) {
+                formData.append("profile_picture", editform.profile_picture);
+            }
+            if (editform.cover_photo instanceof File) {
+                formData.append("cover_photo", editform.cover_photo);
+            }
+
+            const response = await fetch(`/api/users/${user._id}`, {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Profile update failed");
+            }
+
+            localStorage.setItem("user", JSON.stringify(data.user));
+            setUser(data.user);
+            setShowEdit(false);
+            toast.success("Profile updated successfully");
+        } catch (error) {
+            toast.error(error.message);
+        }
     }
 
     return (
@@ -164,6 +202,20 @@ function ProfileEdit({ setShowEdit }) {
                                 className="w-full p-3 border border-gray-200 rounded-lg"
                                 onChange={(e)=>setEditform({...editform,location : e.target.value})}
                                 value={editform.location} placeholder="enter your location" />
+                            </label>
+                        </div>
+                        <div>
+                            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                                Bio
+                                <textarea
+                                    id="bio"
+                                    className="w-full resize-y rounded-lg border border-gray-200 p-3"
+                                    rows="3"
+                                    maxLength="500"
+                                    onChange={(e) => setEditform({ ...editform, bio: e.target.value })}
+                                    value={editform.bio}
+                                    placeholder="Tell people a little about yourself"
+                                />
                             </label>
                         </div>
 

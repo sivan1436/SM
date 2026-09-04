@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 
 import Feed from "./pages/feed.jsx";
 import Discover from "./pages/Discover.jsx";
@@ -13,7 +13,8 @@ import Layout from "./pages/layout.jsx";
 import {Toaster}  from "react-hot-toast"
 
 const App = () => {
-  const isSignedIn = localStorage.getItem("scrink-signed-in") === "true";
+  useLocation();
+  const isSignedIn =Boolean(localStorage.getItem("user"));
 
   return (
     <>

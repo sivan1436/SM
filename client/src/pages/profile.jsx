@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { dummyPostsData, dummyUserData } from "../assets/assets";
+import { dummyPostsData } from "../assets/assets";
 import Loading from "../Components/loading";
 import UserProfileInfo from "../Components/UserProfileInf0";
 import PostCard from "../Components/Postcard";
@@ -16,8 +16,8 @@ function Profile() {
   const [showEdit, setShowEdit] = useState(false);
 
   async function fetchUser() {
-    setUser(dummyUserData);
-    setPosts(dummyPostsData);
+    const storedUser = localStorage.getItem("user");
+    setUser(storedUser ? JSON.parse(storedUser) : null);
   }
 
   useEffect(() => {
@@ -132,7 +132,13 @@ function Profile() {
       </div>
 
       {/* Edit profile model */}
-      {showEdit && <ProfileEdit setShowEdit={setShowEdit} />}
+      {showEdit && (
+        <ProfileEdit
+          user={user}
+          setUser={setUser}
+          setShowEdit={setShowEdit}
+        />
+      )}
     </div>
   ) : (
     <Loading />

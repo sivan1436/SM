@@ -110,19 +110,14 @@ const Register = () => {
       });
 
       const Data = await response.json();
-      const user = Data.user
-localStorage.setItem("user", JSON.stringify(user));
+      const user = Data.user;
+  localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", Data.token);
       
       console.log("Register status:", response.status);
 
       let data = {};
 
-      if (responseText.trim()) {
-        try {
-        } catch {
-          throw new Error("Server returned an invalid response.");
-        }
-      }
 
       if (!response.ok) {
         throw new Error(

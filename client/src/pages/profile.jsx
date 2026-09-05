@@ -25,7 +25,6 @@ function Profile() {
         const currentUser = storedUser ? JSON.parse(storedUser) : null;
         const storedUserId = currentUser?._id || currentUser?.id;
         setCurrentUserId(storedUserId ? String(storedUserId) : null);
-        setShowEdit(false);
         setPeopleView(null);
 
         const token = localStorage.getItem("token");

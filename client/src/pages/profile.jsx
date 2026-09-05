@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { dummyPostsData } from "../assets/assets";
 import Loading from "../Components/loading";
 import UserProfileInfo from "../Components/UserProfileInf0";
 import PostCard from "../Components/Postcard";
@@ -14,17 +13,49 @@ function Profile() {
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [showEdit, setShowEdit] = useState(false);
-
-  async function fetchUser() {
-    const storedUser = localStorage.getItem("user");
-    setUser(storedUser ? JSON.parse(storedUser) : null);
-  }
+  const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    fetchUser();
-  }, []);
+    async function fetchProfile() {
+      try {
+        const storedUser = localStorage.getItem("user");
+        const currentUser = storedUser ? JSON.parse(storedUser) : null;
+        const storedUserId = currentUser?._id || currentUser?.id;
+        setCurrentUserId(storedUserId ? String(storedUserId) : null);
+        setShowEdit(false);
 
-  return user ? (
+        const token = localStorage.getItem("token");
+        const userId = profileId || storedUserId;
+
+        if (!userId) {
+          throw new Error("Unable to identify this profile");
+        }
+
+        const response = await fetch(`/api/messages/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Unable to load profile");
+        }
+
+        setUser(data.user);
+        setPosts(data.posts || []);
+      } catch (fetchError) {
+        setError(fetchError.message);
+      }
+    }
+
+    fetchProfile();
+    window.addEventListener("focus", fetchProfile);
+    return () => window.removeEventListener("focus", fetchProfile);
+  }, [profileId]);
+
+  return error ? (
+    <div className="p-6 text-red-500">{error}</div>
+  ) : user ? (
     <div className="relative h-full overflow-y-scroll bg-gray-50 p-6">
       <div className="mx-auto max-w-3xl">
 
@@ -46,7 +77,13 @@ function Profile() {
           <UserProfileInfo
             user={user}
             posts={posts}
-            profileId={profileId}
+            isOwnProfile={
+              Boolean(
+                currentUserId &&
+                user._id &&
+                currentUserId === String(user._id)
+              )
+            }
             setShowEdit={setShowEdit}
           />
         </div>
@@ -116,15 +153,17 @@ function Profile() {
           {activeTab === "videos" && (
             <div className="mt-6 flex flex-col items-center gap-6">
               {posts
-                .filter((post) => post.video_url)
+                .filter((post) => post.post_type === "video")
                 .map((post) => (
-                  <div key={post._id} className="w-full">
-                    <video
-                      src={post.video_url}
-                      controls
-                      className="w-full rounded-xl"
-                    />
-                  </div>
+                  post.image_urls?.map((videoUrl) => (
+                    <div key={`${post._id}-${videoUrl}`} className="w-full">
+                      <video
+                        src={videoUrl}
+                        controls
+                        className="w-full rounded-xl"
+                      />
+                    </div>
+                  ))
                 ))}
             </div>
           )}

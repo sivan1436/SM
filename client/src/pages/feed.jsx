@@ -1,22 +1,46 @@
-import react, { useState } from "react";
-import { useEffect } from "react";
-import assets, { dummyPostsData } from "../assets/assets";
+import { useEffect, useState } from "react";
+import assets from "../assets/assets";
 import Loading from "../Components/loading";
 import Stories from "../Components/StoriesBar";
 import PostCard from "../Components/Postcard";
 import RecentMessages from "../Components/RecentMessages";
 
 function Feed() {
-  const [Feed,setFeed] = useState([])
-  const [loading,setloading] = useState(true)
-  
-  function fetchFeeds(){
-    setFeed(dummyPostsData)
-    setloading(false)
+  const [Feed, setFeed] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function fetchFeeds() {
+    try {
+      setError("");
+      const response = await fetch("/api/posts", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Posts could not be loaded");
+      }
+
+      setFeed(data.posts);
+    } catch (fetchError) {
+      setError(fetchError.message);
+    } finally {
+      setLoading(false);
+    }
   }
-  useEffect(()=>{
-    fetchFeeds()
-  },[])
+
+  useEffect(() => {
+    const initialFetch = window.setTimeout(fetchFeeds, 0);
+    window.addEventListener("focus", fetchFeeds);
+    return () => {
+      window.clearTimeout(initialFetch);
+      window.removeEventListener("focus", fetchFeeds);
+    };
+  }, []);
+
   return !loading ? (
 
     <div className="h-full overflow-y-scroll no scrollbar py-10 xl:pr-5 flex items-start justify-center xl:gap-8">
@@ -24,9 +48,13 @@ function Feed() {
     <div>
      <Stories />
       <div className="p-4 space-y-6">
-        {Feed.map((post)=>(
+        {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+        {!error && Feed.map((post)=>(
           <PostCard key={post._id} post={post}/>
         ))}
+        {!error && Feed.length === 0 && (
+          <p className="p-4 text-sm text-slate-500">No posts yet. Be the first to share something.</p>
+        )}
       </div>
     </div>
           {/* Right sideBar */}

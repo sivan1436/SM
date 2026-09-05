@@ -4,10 +4,9 @@ import {
   PenBox,
   Verified,
 } from "lucide-react";
-import React from "react";
 import moment from "moment";
 
-function UserProfileInfo({ user, posts, profileId, setShowEdit }) {
+function UserProfileInfo({ user, posts, isOwnProfile, setShowEdit }) {
   return (
     <div className="relative bg-white px-4 py-4 md:px-8">
       <div className="flex flex-col items-start gap-6 md:flex-row">
@@ -37,7 +36,7 @@ function UserProfileInfo({ user, posts, profileId, setShowEdit }) {
               </p>
             </div>
 
-            {!profileId && (
+            {isOwnProfile && (
               <button
                 onClick={() => setShowEdit(true)}
                 className="mt-4 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50 md:mt-0"

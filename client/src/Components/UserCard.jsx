@@ -1,13 +1,53 @@
-import React from "react";
-import { dummyUserData } from "../assets/assets";
-import { MapPin, MessageCircle, MessageSquare, Plus, Send, UserPlus } from "lucide-react";
+import { useState } from "react";
+import { MapPin, Plus, Send, UserPlus } from "lucide-react";
 
-function UserCard({ user }) {
-  const CurrentUser = dummyUserData;
+function UserCard({ user, onUserUpdated }) {
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || null;
+    } catch {
+      return null;
+    }
+  });
+  const [isFollowing, setIsFollowing] = useState(
+    currentUser?.following?.some((id) => id.toString() === user._id.toString())
+  );
+  const [isFollowingLoading, setIsFollowingLoading] = useState(false);
 
-  async function handleFollow() {}
+  async function handleFollow(event) {
+    event.preventDefault();
+    event.stopPropagation();
 
-  async function handleConnectionRequest(params) {}
+    const token = localStorage.getItem("token");
+    if (!token || !currentUser?._id) return;
+
+    try {
+      setIsFollowingLoading(true);
+      const response = await fetch(`/api/connections/${user._id}/follow`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not follow user");
+      }
+
+      setCurrentUser(data.currentUser);
+      setIsFollowing(true);
+      localStorage.setItem("user", JSON.stringify(data.currentUser));
+      onUserUpdated?.(data.user);
+    } catch (error) {
+      console.error("Follow error:", error);
+    } finally {
+      setIsFollowingLoading(false);
+    }
+  }
+
+  function handleConnectionRequest(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 
   return (
     <div
@@ -43,25 +83,25 @@ function UserCard({ user }) {
         </div>
 
         <div className="flex items-center gap-1 border border-gray-300 rounded-md px-2 py-1">
-          <span>{user.followers.length}</span>
+          <span>{user.followers?.length || 0}</span>
           Followers
         </div>
       </div>
       <div className="flex mt-4 gap-2">
         {/* F0ll0w Button */}
         <button onClick={handleFollow}
-        disabled={CurrentUser.following.includes(user._id)}
+        disabled={isFollowing || isFollowingLoading}
         className="w-full py-2 rounded-md flex justify-center
         items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600
         hover : from-indigo-600 hover:to-purple-700 active:scale-95 transition
         text-white cursor-pointer"> 
-            <UserPlus className="w-4 h-4" />{CurrentUser?.following.includes(user._id) ? 'Following' : 'Follow'}
+            <UserPlus className="w-4 h-4" />{isFollowing ? 'Following' : isFollowingLoading ? 'Following...' : 'Follow'}
         </button>
  {/* connection/msg Button */}
  <button onClick={handleConnectionRequest}
  className="flex items-center justify-center w-16 border
  text-slate-500 group rounded-md cursor-pointer active:scale-95 transition"
- >{CurrentUser?.connections.includes(user._id) ? 
+ >{currentUser?.connections?.includes(user._id) ? 
     <Send className="w-5 h-5 group-hover:scale-105 transition"/> : <Plus className="w-5 h-5 group-hover:scale-105 transition"/> }</button>
       </div>
     </div>

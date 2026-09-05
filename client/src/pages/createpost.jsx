@@ -1,14 +1,14 @@
-import React, { useState } from "react";
-import { dummyUserData } from "../assets/assets";
+import { useState } from "react";
 import { Image, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 function CreatePost() {
   const [content, setContent] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const user = dummyUserData;
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -40,19 +40,33 @@ function CreatePost() {
   async function handleSubmit() {
     if (loading) return;
 
+    if (!content.trim() && images.length === 0) {
+      throw new Error("Add some text or media before posting");
+    }
+
     setLoading(true);
 
     try {
-      // Your upload logic will go here
+      const formData = new FormData();
+      formData.append("content", content);
+      images.forEach((image) => formData.append("media", image));
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Post could not be uploaded");
+      }
 
       setContent("");
       setImages([]);
-
-      return true;
-    } catch (error) {
-      throw error;
+      navigate("/feed");
     } finally {
       setLoading(false);
     }
@@ -64,7 +78,7 @@ function CreatePost() {
     toast.promise(handleSubmit(), {
       loading: "Uploading...",
       success: "Post has been uploaded",
-      error: "Post has not uploaded, try again",
+      error: (error) => error.message || "Post has not uploaded, try again",
     });
   };
 
@@ -96,11 +110,11 @@ function CreatePost() {
 
             <div>
               <h1 className="font-semibold">
-                {user.full_name}
+                {user?.full_name || "Your profile"}
               </h1>
 
               <p className="text-sm text-gray-500">
-                @{user.username}
+                @{user?.username || "user"}
               </p>
             </div>
           </div>

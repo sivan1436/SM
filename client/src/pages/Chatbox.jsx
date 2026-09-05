@@ -1,8 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  dummyConnectionsData,
-  dummyMessagesData,
-} from "../assets/assets";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ImageIcon,
@@ -23,21 +19,44 @@ function ChatBox() {
   const [audio, setAudio] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [user, setUser] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loadError, setLoadError] = useState("");
+  const [sendError, setSendError] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   const messagesEndRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioStreamRef = useRef(null);
 
-  const messages = dummyMessagesData;
-
-  // Find selected user
   useEffect(() => {
-    const selectedUser = dummyConnectionsData.find(
-      (user) => user._id === userId
-    );
+    async function loadChat() {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        const [userResponse, messagesResponse] = await Promise.all([
+          fetch(`/api/messages/users/${userId}`, { headers }),
+          fetch(`/api/messages/${userId}`, { headers }),
+        ]);
+        const userData = await userResponse.json();
+        const messagesData = await messagesResponse.json();
 
-    setUser(selectedUser);
+        if (!userResponse.ok || !userData.success) {
+          throw new Error(userData.message || "Unable to load user");
+        }
+
+        if (!messagesResponse.ok) {
+          throw new Error(messagesData.message || "Unable to load messages");
+        }
+
+        setUser(userData.user);
+        setMessages(messagesData);
+      } catch (error) {
+        setLoadError(error.message);
+      }
+    }
+
+    loadChat();
   }, [userId]);
 
   // Select multiple images/videos
@@ -137,15 +156,39 @@ function ChatBox() {
       return;
     }
 
-    // Backend/API logic will go here
+    setIsSending(true);
+    setSendError("");
 
-    console.log("Text:", text);
-    console.log("Images/Videos:", images);
-    console.log("Audio:", audio);
+    try {
+      const formData = new FormData();
+      formData.append("text", text.trim());
+      images.forEach((file) => formData.append("media", file));
+      if (audio) formData.append("media", audio, "voice-message.webm");
 
-    setText("");
-    setImages([]);
-    setAudio(null);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/messages/${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to send message");
+      }
+
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        ...data.messages,
+      ]);
+      setText("");
+      setImages([]);
+      setAudio(null);
+    } catch (error) {
+      setSendError(error.message);
+    } finally {
+      setIsSending(false);
+    }
   }
 
   // Scroll to latest message
@@ -167,7 +210,9 @@ function ChatBox() {
   }, []);
 
   return (
-    user && (
+    loadError ? (
+      <div className="p-6 text-red-500">{loadError}</div>
+    ) : user && (
       <div className="flex flex-col h-screen bg-[#efeae2]">
 
         {/* User Header */}
@@ -290,7 +335,7 @@ function ChatBox() {
                           </span>
 
                           {/* WhatsApp-style ticks */}
-                          {message.is_read ? (
+                          {message.seen ? (
                             <CheckCheck
                               className="w-4 h-4
                               text-[#53bdeb]"
@@ -483,7 +528,7 @@ function ChatBox() {
                     ? "Recording..."
                     : "Type a message..."
                 }
-                disabled={isRecording}
+                disabled={isRecording || isSending}
                 value={text}
                 onChange={(e) =>
                   setText(e.target.value)
@@ -526,7 +571,7 @@ function ChatBox() {
               <button
                 type="button"
                 onClick={sendMessage}
-                disabled={isRecording}
+                disabled={isRecording || isSending}
                 className="p-2 rounded-full
                 text-gray-700
                 hover:bg-gray-100
@@ -539,6 +584,10 @@ function ChatBox() {
               </button>
 
             </div>
+
+            {sendError && (
+              <p className="mt-2 text-sm text-red-500">{sendError}</p>
+            )}
 
           </div>
         </div>

@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { dummyPostsData } from "../assets/assets";
 import Loading from "../Components/loading";
 import UserProfileInfo from "../Components/UserProfileInf0";
 import PostCard from "../Components/Postcard";
@@ -11,20 +10,43 @@ function Profile() {
   const { profileId } = useParams();
 
   const [user, setUser] = useState(null);
-  const [posts, setPosts] = useState([]);
+  const [posts] = useState([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [showEdit, setShowEdit] = useState(false);
-
-  async function fetchUser() {
-    const storedUser = localStorage.getItem("user");
-    setUser(storedUser ? JSON.parse(storedUser) : null);
-  }
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchUser();
-  }, []);
+    async function fetchProfile() {
+      try {
+        const storedUser = localStorage.getItem("user");
 
-  return user ? (
+        if (!profileId) {
+          setUser(storedUser ? JSON.parse(storedUser) : null);
+          return;
+        }
+
+        const token = localStorage.getItem("token");
+        const response = await fetch(`/api/messages/users/${profileId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Unable to load profile");
+        }
+
+        setUser(data.user);
+      } catch (fetchError) {
+        setError(fetchError.message);
+      }
+    }
+
+    fetchProfile();
+  }, [profileId]);
+
+  return error ? (
+    <div className="p-6 text-red-500">{error}</div>
+  ) : user ? (
     <div className="relative h-full overflow-y-scroll bg-gray-50 p-6">
       <div className="mx-auto max-w-3xl">
 
@@ -46,7 +68,7 @@ function Profile() {
           <UserProfileInfo
             user={user}
             posts={posts}
-            profileId={profileId}
+            isOwnProfile={!profileId || profileId === user._id}
             setShowEdit={setShowEdit}
           />
         </div>

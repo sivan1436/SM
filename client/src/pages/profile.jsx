@@ -5,6 +5,7 @@ import UserProfileInfo from "../Components/UserProfileInf0";
 import PostCard from "../Components/Postcard";
 import moment from "moment";
 import ProfileEdit from "../Components/ProfileEdit";
+import ProfilePeopleList from "../Components/ProfilePeopleList";
 
 function Profile() {
   const { profileId } = useParams();
@@ -15,6 +16,7 @@ function Profile() {
   const [showEdit, setShowEdit] = useState(false);
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [peopleView, setPeopleView] = useState(null);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -24,6 +26,7 @@ function Profile() {
         const storedUserId = currentUser?._id || currentUser?.id;
         setCurrentUserId(storedUserId ? String(storedUserId) : null);
         setShowEdit(false);
+        setPeopleView(null);
 
         const token = localStorage.getItem("token");
         const userId = profileId || storedUserId;
@@ -85,11 +88,18 @@ function Profile() {
               )
             }
             setShowEdit={setShowEdit}
+            onFollowersClick={() => setPeopleView("followers")}
+            onFollowingClick={() => setPeopleView("following")}
           />
         </div>
 
-        {/* Tabs */}
-        <div className="mt-6">
+        {peopleView ? (
+          <ProfilePeopleList
+            title={peopleView === "followers" ? "Followers" : "Following"}
+            people={user[peopleView] || []}
+            onClose={() => setPeopleView(null)}
+          />
+        ) : <div className="mt-6">
           <div className="mx-auto flex max-w-md rounded-xl bg-white p-1 shadow">
             {["posts", "media", "videos"].map((tab) => (
               <button
@@ -167,7 +177,7 @@ function Profile() {
                 ))}
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Edit profile model */}

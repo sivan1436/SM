@@ -58,7 +58,10 @@ export async function getMessages(req, res) {
 
 export async function getUserById(req, res) {
 	try {
-		const user = await User.findById(req.params.userId).select("-password");
+		const user = await User.findById(req.params.userId)
+			.select("-password")
+			.populate("followers", "full_name username profile_picture is_verified bio location")
+			.populate("following", "full_name username profile_picture is_verified bio location");
 
 		if (!user) {
 			return res.status(404).json({

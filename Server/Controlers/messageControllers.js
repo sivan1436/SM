@@ -1,5 +1,6 @@
 import Message from "../Models/Messages.js";
 import User from "../Models/User.js";
+import Post from "../Models/Posts.js";
 import mongoose from "mongoose";
 
 export async function getMessages(req, res) {
@@ -66,7 +67,11 @@ export async function getUserById(req, res) {
 			});
 		}
 
-		return res.json({ success: true, user });
+		const posts = await Post.find({ user: user._id })
+			.populate("user", "full_name username profile_picture is_verified")
+			.sort({ createdAt: -1 });
+
+		return res.json({ success: true, user, posts });
 	} catch (error) {
 		return res.status(400).json({
 			success: false,

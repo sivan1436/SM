@@ -1,15 +1,14 @@
-import React, { useState } from "react";
-import { BadgeCheck, Heart, LucideShare2, MessageCircle, MessageSquare, MessageSquareShareIcon, Share2, Share2Icon, ShareIcon } from "lucide-react";
+import { useState } from "react";
+import { BadgeCheck, Heart, MessageSquare, Share2Icon } from "lucide-react";
 import moment from "moment";
-import { dummyUserData } from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 
 function PostCard({ post }) {
-  const currentUser = dummyUserData;
+  const currentUser = JSON.parse(localStorage.getItem("user") || "null");
 
-  const [likes, setLikes] = useState(post.like_count || 0);
+  const [likes, setLikes] = useState(post.likes_count?.length || 0);
   const [liked, setLiked] = useState(
-    post.likes?.includes(currentUser._id) || false
+    post.likes_count?.includes(currentUser?._id || currentUser?.id) || false
   );
 
   const postWithHashTags = post.content
@@ -60,16 +59,18 @@ function PostCard({ post }) {
       {post.image_urls?.length > 0 && (
         <div className="grid grid-cols-2 gap-2 mt-4">
           {post.image_urls.map((img, index) => (
-            <img
-              key={index}
-              src={img}
-              alt="Post image"
-              className={`w-full h-48 object-cover rounded-lg ${
-                post.image_urls.length === 1
-                  ? "col-span-2 h-auto"
-                  : ""
-              }`}
-            />
+            post.post_type === "video" ? (
+              <video key={index} src={img} controls className="w-full h-48 object-cover rounded-lg" />
+            ) : (
+              <img
+                key={index}
+                src={img}
+                alt="Post media"
+                className={`w-full h-48 object-cover rounded-lg ${
+                  post.image_urls.length === 1 ? "col-span-2 h-auto" : ""
+                }`}
+              />
+            )
           ))}
         </div>
       )}

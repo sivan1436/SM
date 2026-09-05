@@ -6,6 +6,7 @@ import messageRoutes from "./Routes/messageRoutes.js";
 import authRoutes from "./Routes/authRoutes.js"
 import userRoutes from "./Routes/userRoutes.js";
 import connectionRoutes from "./Routes/connectionRoutes.js";
+import postRoutes from "./Routes/postRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -23,6 +24,7 @@ app.use("/uploads", express.static(uploadDirectory));
 app.use("/api/messages", messageRoutes);
 app.use("/api/users",userRoutes)
 app.use("/api/connections", connectionRoutes);
+app.use("/api/posts", postRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server is running!");

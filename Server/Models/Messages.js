@@ -18,11 +18,12 @@ const messageSchema = new mongoose.Schema(
       type: String,
       default: "",
       maxlength: 5000,
+      trim: true,
     },
 
     message_type: {
       type: String,
-      enum: ["text", "image", "video", "file"],
+      enum: ["text", "image", "video", "audio", "file"],
       default: "text",
     },
 

@@ -68,7 +68,13 @@ export async function getUserById(req, res) {
 		}
 
 		const posts = await Post.find({ user: user._id })
-			.populate("user", "full_name username profile_picture is_verified")
+			.populate([
+				{ path: "user", select: "full_name username profile_picture is_verified" },
+				{
+					path: "comments.user",
+					select: "full_name username profile_picture is_verified",
+				},
+			])
 			.sort({ createdAt: -1 });
 
 		return res.json({ success: true, user, posts });

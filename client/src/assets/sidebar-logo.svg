@@ -1,0 +1,15 @@
+<svg width="176" height="48" viewBox="0 0 176 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Scrink</title>
+  <desc id="desc">Scrink social network logo</desc>
+  <defs>
+    <linearGradient id="mark" x1="4" y1="4" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F39F6"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <path d="M23.5 4C12.73 4 4 12.73 4 23.5S12.73 43 23.5 43c5.14 0 9.81-1.99 13.29-5.24l-5.12-5.12A12.18 12.18 0 0 1 23.5 31C19.36 31 16 27.64 16 23.5S19.36 16 23.5 16c3.04 0 5.67 1.81 6.86 4.41l7.1-2.83A19.48 19.48 0 0 0 23.5 4Z" fill="url(#mark)"/>
+  <path d="M24.5 16.5h8.75a7.75 7.75 0 1 1 0 15.5H24.5a7.75 7.75 0 1 1 0-15.5Z" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>
+  <path d="M15.75 24.25h16.5" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <text x="51" y="31" fill="#0F172A" font-family="Georgia, serif" font-size="25" font-weight="700" letter-spacing="0">scrink</text>
+  <circle cx="148" cy="12" r="3" fill="#F59E0B"/>
+</svg>

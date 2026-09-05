@@ -14,14 +14,18 @@ function Profile() {
   const [activeTab, setActiveTab] = useState("posts");
   const [showEdit, setShowEdit] = useState(false);
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         const storedUser = localStorage.getItem("user");
+        const currentUser = storedUser ? JSON.parse(storedUser) : null;
+        setCurrentUserId(currentUser?._id ? String(currentUser._id) : null);
+        setShowEdit(false);
 
         if (!profileId) {
-          setUser(storedUser ? JSON.parse(storedUser) : null);
+          setUser(currentUser);
           return;
         }
 
@@ -68,7 +72,13 @@ function Profile() {
           <UserProfileInfo
             user={user}
             posts={posts}
-            isOwnProfile={!profileId || profileId === user._id}
+            isOwnProfile={
+              Boolean(
+                currentUserId &&
+                user._id &&
+                currentUserId === String(user._id)
+              )
+            }
             setShowEdit={setShowEdit}
           />
         </div>

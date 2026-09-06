@@ -25,7 +25,7 @@ function Discover() {
       setLoading(true);
 
       const { data } = await axios.post(
-        "api/users/search",
+        "/api/users/search",
         {
           username: searchValue,
           limit: 20,
@@ -63,6 +63,7 @@ function Discover() {
         <div className="mb-8 shadow-md rounded-md border border-slate-200/60 bg-white/80">
           <div className="p-1">
             <div className="relative">
+
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2
                 text-slate-400 w-5 h-5"
@@ -76,6 +77,7 @@ function Discover() {
                 value={input}
                 onKeyUp={handleSearch}
               />
+
             </div>
           </div>
         </div>
@@ -111,6 +113,7 @@ function Discover() {
             No users found.
           </div>
         )}
+
       </div>
     </div>
   );

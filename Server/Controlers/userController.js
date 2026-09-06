@@ -3,30 +3,43 @@ import mongoose from "mongoose";
 import { parseLimit } from "../utils/pagination.js";
 
 export async function Findusers(req, res) {
-    try {
-        const username = typeof req.body.username === "string" ? req.body.username.trim() : "";
-        const limit = parseLimit(req.query.limit || req.body.limit);
-        if (username.length < 2) {
-          return res.status(400).json({ success: false, message: "Search must contain at least 2 characters" });
-        }
+  try {
+    const username =
+      typeof req.body.username === "string"
+        ? req.body.username.trim()
+        : "";
 
-        const users = await User.find({ username: { $regex: `^${username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, $options: "i" } })
-          .select("full_name username profile_picture is_verified bio location")
-          .sort({ username: 1 })
-          .limit(limit);
+    const limit = parseLimit(req.query.limit || req.body.limit);
 
-        return res.status(200).json({
-            success: true,
-            message: "Users retrieved successfully",
-            users
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: "Users could not be retrieved from the database",
-            error: error.message
-        });
+    if (username.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Search must contain at least 2 characters",
+      });
     }
+
+    const users = await User.find({
+      username: {
+        $regex: `^${username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        $options: "i",
+      },
+    })
+      .select("full_name username profile_picture is_verified bio location")
+      .sort({ username: 1 })
+      .limit(limit);
+
+    return res.status(200).json({
+      success: true,
+      message: "Users retrieved successfully",
+      users,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Users could not be retrieved from the database",
+      error: error.message,
+    });
+  }
 }
 
 export async function EditUser(req, res) {
@@ -60,19 +73,40 @@ export async function EditUser(req, res) {
       });
     }
 
-    // Update only the fields that were provided
-    if (full_name !== undefined) user.full_name = full_name;
-    if (username !== undefined) user.username = username;
-    if (bio !== undefined) user.bio = bio;
-    if (location !== undefined) user.location = location;
-    if (req.files?.profile_picture?.[0]) {
-      user.profile_picture = `${req.protocol}://${req.get("host")}/uploads/${req.files.profile_picture[0].filename}`;
+    // Update only provided fields
+    if (full_name !== undefined) {
+      user.full_name = full_name;
     }
+
+    if (username !== undefined) {
+      user.username = username;
+    }
+
+    if (bio !== undefined) {
+      user.bio = bio;
+    }
+
+    if (location !== undefined) {
+      user.location = location;
+    }
+
+    // Render backend URL
+    const baseUrl = "https://sm-1-caf2.onrender.com";
+
+    // Profile picture
+    if (req.files?.profile_picture?.[0]) {
+      user.profile_picture =
+        `${baseUrl}/uploads/${req.files.profile_picture[0].filename}`;
+    }
+
+    // Cover photo
     if (req.files?.cover_photo?.[0]) {
-      user.cover_photo = `${req.protocol}://${req.get("host")}/uploads/${req.files.cover_photo[0].filename}`;
+      user.cover_photo =
+        `${baseUrl}/uploads/${req.files.cover_photo[0].filename}`;
     }
 
     const updatedUser = await user.save();
+
     const safeUser = updatedUser.toObject();
     delete safeUser.password;
 

@@ -1,14 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
-import { X, BadgeCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BadgeCheck, Trash2, X } from "lucide-react";
 
 function StoryViewer({
   stories,
   currentStoryIndex,
   setCurrentStoryIndex,
   setViewStory,
+  removeStory,
 }) {
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
 
   const videoRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -16,14 +18,22 @@ function StoryViewer({
 
   const STORY_DURATION = 5000;
 
-  const viewStory = stories[currentStoryIndex];
+  const storyGroup = stories[currentStoryIndex];
+  const [currentGroupStoryIndex, setCurrentGroupStoryIndex] = useState(0);
+  const viewStory = storyGroup?.stories[currentGroupStoryIndex];
+  const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+  const currentUserId = currentUser?._id || currentUser?.id;
+  const storyUserId = viewStory?.user?._id || viewStory?.user?.id || viewStory?.user;
+  const canDeleteStory = viewStory?.is_owner === true ||
+    String(storyUserId) === String(currentUserId) ||
+    String(storyGroup?.userId) === String(currentUserId);
 
   // -------------------------
   // Next Story
   // -------------------------
   const nextStory = () => {
-    if (currentStoryIndex < stories.length - 1) {
-      setCurrentStoryIndex((prev) => prev + 1);
+    if (storyGroup && currentGroupStoryIndex < storyGroup.stories.length - 1) {
+      setCurrentGroupStoryIndex((prev) => prev + 1);
     } else {
       setViewStory(null);
     }
@@ -33,7 +43,9 @@ function StoryViewer({
   // Previous Story
   // -------------------------
   const previousStory = () => {
-    if (currentStoryIndex > 0) {
+    if (storyGroup && currentGroupStoryIndex > 0) {
+      setCurrentGroupStoryIndex((prev) => prev - 1);
+    } else if (currentStoryIndex > 0) {
       setCurrentStoryIndex((prev) => prev - 1);
     }
   };
@@ -42,12 +54,48 @@ function StoryViewer({
   // Reset when story changes
   // -------------------------
   useEffect(() => {
-    setProgress(0);
-    setIsPaused(false);
-
     startTimeRef.current = Date.now();
     elapsedRef.current = 0;
+
+    const resetProgress = window.setTimeout(() => {
+      setProgress(0);
+      setIsPaused(false);
+      setMediaError(false);
+    }, 0);
+
+    return () => window.clearTimeout(resetProgress);
+  }, [currentStoryIndex, currentGroupStoryIndex]);
+
+  useEffect(() => {
+    const resetGroupStory = window.setTimeout(() => {
+      setCurrentGroupStoryIndex(0);
+    }, 0);
+
+    return () => window.clearTimeout(resetGroupStory);
   }, [currentStoryIndex]);
+
+  async function handleDeleteStory() {
+    if (!viewStory || !canDeleteStory) return;
+
+    const response = await fetch(`/api/stories/${viewStory._id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+    });
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      return;
+    }
+
+    removeStory(viewStory._id);
+    if (storyGroup.stories.length > 1) {
+      setCurrentGroupStoryIndex((prev) => Math.min(prev, storyGroup.stories.length - 2));
+    } else {
+      setViewStory(null);
+    }
+  }
 
   // -------------------------
   // Image/Text Progress
@@ -86,7 +134,7 @@ function StoryViewer({
     }, 50);
 
     return () => clearInterval(interval);
-  }, [currentStoryIndex, isPaused]);
+  }, [currentGroupStoryIndex, isPaused]);
 
   // -------------------------
   // Pause Story
@@ -153,14 +201,23 @@ function StoryViewer({
   // Content
   // -------------------------
   function renderContent() {
+    if (mediaError) {
+      return (
+        <div className="flex min-h-[70vh] items-center justify-center p-8 text-center text-white">
+          This story media could not be loaded.
+        </div>
+      );
+    }
+
     switch (viewStory.media_type) {
       case "image":
         return (
           <img
             src={viewStory.media_url}
             alt=""
-            className="max-w-full max-h-[90vh] object-contain select-none"
+            className="h-auto max-h-[80vh] w-auto max-w-[90vw] object-contain select-none"
             draggable="false"
+            onError={() => setMediaError(true)}
           />
         );
 
@@ -169,21 +226,21 @@ function StoryViewer({
           <video
             ref={videoRef}
             src={viewStory.media_url}
-            className="max-h-[90vh] max-w-full object-contain"
+            className="h-auto max-h-[80vh] w-auto max-w-[90vw] object-contain"
             autoPlay
             controls
             playsInline
             onTimeUpdate={handleVideoTimeUpdate}
             onEnded={handleVideoEnded}
+            onError={() => {
+              setMediaError(true);
+              setIsPaused(true);
+            }}
           />
         );
 
       case "text":
-        return (
-          <div className="w-full min-h-[70vh] flex items-center justify-center p-8 text-white text-2xl font-medium text-center select-none">
-            {viewStory.content}
-          </div>
-        );
+        return null;
 
       default:
         return null;
@@ -242,11 +299,23 @@ function StoryViewer({
         <X className="w-8 h-8 hover:scale-110 transition cursor-pointer" />
       </button>
 
+      {canDeleteStory && (
+        <button
+          onClick={handleDeleteStory}
+          className="absolute top-4 right-16 z-50 text-white"
+          aria-label="Delete story"
+        >
+          <Trash2 className="w-7 h-7 hover:text-red-400 transition cursor-pointer" />
+        </button>
+      )}
+
       {/* =========================
           Story Content
       ========================== */}
       <div
-        className="relative w-full max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+        className={`relative flex min-h-[70vh] w-[min(90vw,520px)] items-center justify-center overflow-hidden ${
+          viewStory.media_type === "text" ? "bg-transparent" : "bg-black"
+        }`}
         onMouseDown={pauseStory}
         onMouseUp={resumeStory}
         onMouseLeave={resumeStory}
@@ -254,6 +323,11 @@ function StoryViewer({
         onTouchEnd={resumeStory}
       >
         {renderContent()}
+        {viewStory.content && (
+          <p className="absolute bottom-4 left-4 right-4 z-10 rounded bg-black/50 p-3 text-center text-white">
+            {viewStory.content}
+          </p>
+        )}
       </div>
 
       {/* =========================

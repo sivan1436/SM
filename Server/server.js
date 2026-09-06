@@ -7,6 +7,7 @@ import authRoutes from "./Routes/authRoutes.js"
 import userRoutes from "./Routes/userRoutes.js";
 import connectionRoutes from "./Routes/connectionRoutes.js";
 import postRoutes from "./Routes/postRoutes.js";
+import storyRoutes from "./Routes/storyRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -25,6 +26,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/users",userRoutes)
 app.use("/api/connections", connectionRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/stories", storyRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server is running!");
@@ -36,10 +38,14 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth/",authRoutes)
 
 app.use((error, _req, res, _next) => {
-  if (error?.code === "LIMIT_FILE_SIZE" || error?.message === "Only image files are allowed") {
+  if (
+    error?.code === "LIMIT_FILE_SIZE" ||
+    error?.message === "Only image files are allowed" ||
+    error?.message === "Only image and video files are allowed"
+  ) {
     return res.status(400).json({
       success: false,
-      message: error.message === "Only image files are allowed"
+      message: error?.message?.startsWith("Only ")
         ? error.message
         : "Images must be 5 MB or smaller",
     });

@@ -1,5 +1,5 @@
 import { ArrowLeft, Sparkle, TextIcon, Upload } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast"
 function StoryModel({ setShowModel, fetchStories }) {
   const bgColor = [
@@ -16,6 +16,7 @@ function StoryModel({ setShowModel, fetchStories }) {
   const [text, setText] = useState("");
   const [media, setMedia] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleMedia(e) {
     const file = e.target.files?.[0];
@@ -28,10 +29,34 @@ function StoryModel({ setShowModel, fetchStories }) {
   }
 
   async function handleCreateStory() {
-    // Add your story creation logic here
+    const formData = new FormData();
+    formData.append("content", text.trim());
+    formData.append("background_color", bg);
+    if (media) {
+      formData.append("media", media);
+    }
 
-    await fetchStories();
-    setShowModel(false);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/stories", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Story could not be created");
+      }
+
+      await fetchStories();
+      setShowModel(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -70,19 +95,29 @@ function StoryModel({ setShowModel, fetchStories }) {
           {/* Media Story */}
           {mode === "media" &&
             previewUrl &&
-            (media?.type.startsWith("image/") ? (
-              <img
-                src={previewUrl}
-                alt="Preview"
-                className="w-full h-full object-cover"
+            <>
+              {media?.type.startsWith("image/") ? (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <video
+                  src={previewUrl}
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              )}
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Add text to your story"
+                className="absolute bottom-0 left-0 right-0 bg-black/50 p-4 text-white resize-none focus:outline-none"
+                rows={2}
+                maxLength={2000}
               />
-            ) : (
-              <video
-                src={previewUrl}
-                controls
-                className="w-full h-full object-cover"
-              />
-            ))}
+            </>}
         </div>
 
         {/* Background Color Buttons */}
@@ -137,9 +172,9 @@ function StoryModel({ setShowModel, fetchStories }) {
             Photo/Video
           </label>
         </div>
-        <button onClick={()=>toast.promise(handleCreateStory(),{loading : 'saving...',success : <p>Story Added</p>,error : e=><p>{e.message}</p>,})} className="flex item-center justify-center gap-2 text-white
+        <button disabled={isSubmitting} onClick={()=>toast.promise(handleCreateStory(),{loading : 'saving...',success : <p>Story Added</p>,error : e=><p>{e.message}</p>,})} className="flex item-center justify-center gap-2 text-white
         py-3 mt-4 w-full rounded bg-gradient-to-r from-indigo-500 to-purple-600
-        hoer:from-indigo-600 hover:to-purple-700 active:scale-95 transition cursor-pointer">
+        hoer:from-indigo-600 hover:to-purple-700 active:scale-95 transition cursor-pointer disabled:opacity-60">
             <Sparkle size ={18} /> Create Story
         </button>
       </div>

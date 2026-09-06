@@ -50,14 +50,19 @@ const Register = () => {
     const password = formData.password;
     const confirmPassword = formData.confirmPassword;
 
-    // Validation
+    // -----------------------------
+    // FRONTEND VALIDATION
+    // -----------------------------
+
     if (!fullName) {
       setError("Please enter your full name.");
       return;
     }
 
     if (fullName.length < 2) {
-      setError("Full name must contain at least 2 characters.");
+      setError(
+        "Full name must contain at least 2 characters."
+      );
       return;
     }
 
@@ -67,7 +72,9 @@ const Register = () => {
     }
 
     if (username.length < 3) {
-      setError("Username must contain at least 3 characters.");
+      setError(
+        "Username must contain at least 3 characters."
+      );
       return;
     }
 
@@ -79,12 +86,16 @@ const Register = () => {
     }
 
     if (!emailPattern.test(email)) {
-      setError("Please enter a valid email address.");
+      setError(
+        "Please enter a valid email address."
+      );
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError(
+        "Password must be at least 6 characters."
+      );
       return;
     }
 
@@ -96,40 +107,90 @@ const Register = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName,
-          username,
-          email,
-          password,
-        }),
-      });
+      // -----------------------------
+      // REGISTER REQUEST
+      // -----------------------------
 
-      const Data = await response.json();
-      const user = Data.user;
-  localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("token", Data.token);
-      
-      console.log("Register status:", response.status);
+      const response = await fetch(
+        "/api/auth/register",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            fullName,
+            username,
+            email,
+            password,
+          }),
+        }
+      );
+
+      // -----------------------------
+      // READ BACKEND RESPONSE
+      // -----------------------------
 
       let data = {};
 
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
-      if (!response.ok) {
+      console.log(
+        "Register status:",
+        response.status
+      );
+
+      console.log(
+        "Register response:",
+        data
+      );
+
+      // -----------------------------
+      // HANDLE BACKEND ERROR
+      // -----------------------------
+
+      if (!response.ok || data.success === false) {
         throw new Error(
           data.message ||
             `Registration failed with status ${response.status}.`
         );
       }
 
+      // -----------------------------
+      // SAVE USER + TOKEN
+      // ONLY AFTER SUCCESS
+      // -----------------------------
+
+      if (data.user) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify(data.user)
+        );
+      }
+
+      if (data.token) {
+        localStorage.setItem(
+          "token",
+          data.token
+        );
+      }
+
+      // -----------------------------
+      // SUCCESS MESSAGE
+      // -----------------------------
+
       setSuccess(
-        data.message || "Account created successfully!"
+        data.message ||
+          "Account created successfully!"
       );
 
+      // Clear form
       setFormData({
         fullName: "",
         username: "",
@@ -138,12 +199,19 @@ const Register = () => {
         confirmPassword: "",
       });
 
-      // Navigate after successful registration
+      // -----------------------------
+      // REDIRECT
+      // -----------------------------
+
       setTimeout(() => {
         navigate("/");
       }, 1000);
+
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error(
+        "Registration error:",
+        error
+      );
 
       setError(
         error.message ||
@@ -158,82 +226,224 @@ const Register = () => {
     <div className="relative min-h-screen overflow-hidden">
 
       {/* Background */}
+
       <img
         src={assets.bgImage}
         alt="Background"
-        className="absolute inset-0 h-full w-full object-cover"
+        className="
+          absolute
+          inset-0
+          h-full
+          w-full
+          object-cover
+        "
       />
 
       <div className="absolute inset-0 bg-black/20" />
 
-      <div className="relative z-10 grid min-h-screen grid-cols-1 md:grid-cols-2">
+      <div
+        className="
+          relative
+          z-10
+          grid
+          min-h-screen
+          grid-cols-1
+          md:grid-cols-2
+        "
+      >
 
-        {/* Left Side */}
-        <div className="flex flex-col items-start justify-between p-6 md:p-10 lg:pl-40">
+        {/* =====================================================
+            LEFT SIDE
+        ===================================================== */}
+
+        <div
+          className="
+            flex
+            flex-col
+            items-start
+            justify-between
+            p-6
+            md:p-10
+            lg:pl-40
+          "
+        >
+
+          {/* Logo */}
 
           <img
             src={assets.logo}
             alt="Scrink Logo"
-            className="h-12 object-contain"
+            className="
+              h-12
+              object-contain
+            "
           />
+
+          {/* Text */}
 
           <div className="mb-10">
 
-            <div className="mb-4 flex items-center gap-3">
+            <div
+              className="
+                mb-4
+                flex
+                items-center
+                gap-3
+              "
+            >
 
-              <UserPlus className="size-10 rounded-full bg-white/80 p-2 text-indigo-700" />
+              <UserPlus
+                className="
+                  size-10
+                  rounded-full
+                  bg-white/80
+                  p-2
+                  text-indigo-700
+                "
+              />
 
-              <p className="text-lg font-medium text-white">
+              <p
+                className="
+                  text-lg
+                  font-medium
+                  text-white
+                "
+              >
                 Your community is waiting
               </p>
 
             </div>
 
-            <h1 className="bg-gradient-to-r from-indigo-950 to-indigo-800 bg-clip-text text-4xl font-bold text-transparent md:text-6xl">
+            <h1
+              className="
+                bg-gradient-to-r
+                from-indigo-950
+                to-indigo-800
+                bg-clip-text
+                text-4xl
+                font-bold
+                text-transparent
+                md:text-6xl
+              "
+            >
               meet people who get you
             </h1>
 
-            <p className="mt-2 max-w-md text-xl text-indigo-900 md:text-3xl">
+            <p
+              className="
+                mt-2
+                max-w-md
+                text-xl
+                text-indigo-900
+                md:text-3xl
+              "
+            >
               create your space on Scrink
             </p>
 
           </div>
 
           <span className="md:h-10" />
+
         </div>
 
-        {/* Right Side */}
-        <div className="flex items-center justify-center p-6 sm:p-10">
+        {/* =====================================================
+            RIGHT SIDE
+        ===================================================== */}
 
-          <div className="w-full max-w-md rounded-3xl bg-white/95 p-7 shadow-2xl shadow-indigo-950/20 backdrop-blur sm:p-10">
+        <div
+          className="
+            flex
+            items-center
+            justify-center
+            p-6
+            sm:p-10
+          "
+        >
 
-            {/* Header */}
+          <div
+            className="
+              w-full
+              max-w-md
+              rounded-3xl
+              bg-white/95
+              p-7
+              shadow-2xl
+              shadow-indigo-950/20
+              backdrop-blur
+              sm:p-10
+            "
+          >
+
+            {/* =================================================
+                HEADER
+            ================================================= */}
+
             <div className="mb-7">
 
-              <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
+              <p
+                className="
+                  mb-2
+                  text-sm
+                  font-semibold
+                  uppercase
+                  tracking-[0.2em]
+                  text-indigo-600
+                "
+              >
                 Join Scrink
               </p>
 
-              <h2 className="text-3xl font-bold text-slate-900">
+              <h2
+                className="
+                  text-3xl
+                  font-bold
+                  text-slate-900
+                "
+              >
                 Create your account
               </h2>
 
-              <p className="mt-2 text-slate-500">
+              <p
+                className="
+                  mt-2
+                  text-slate-500
+                "
+              >
                 A place for genuine conversations.
               </p>
 
             </div>
 
-            {/* Form */}
+            {/* =================================================
+                FORM
+            ================================================= */}
+
             <form
               onSubmit={handleSubmit}
               className="space-y-4"
             >
 
               {/* Full Name + Username */}
-              <div className="grid gap-4 sm:grid-cols-2">
 
-                <label className="block text-sm font-medium text-slate-700">
+              <div
+                className="
+                  grid
+                  gap-4
+                  sm:grid-cols-2
+                "
+              >
+
+                {/* Full Name */}
+
+                <label
+                  className="
+                    block
+                    text-sm
+                    font-medium
+                    text-slate-700
+                  "
+                >
                   Full name
 
                   <input
@@ -245,11 +455,37 @@ const Register = () => {
                     autoComplete="name"
                     required
                     disabled={isSubmitting}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
+                    className="
+                      mt-2
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-slate-50
+                      px-4
+                      py-3
+                      text-slate-900
+                      outline-none
+                      transition
+                      placeholder:text-slate-400
+                      focus:border-indigo-500
+                      focus:ring-4
+                      focus:ring-indigo-500/10
+                      disabled:opacity-60
+                    "
                   />
                 </label>
 
-                <label className="block text-sm font-medium text-slate-700">
+                {/* Username */}
+
+                <label
+                  className="
+                    block
+                    text-sm
+                    font-medium
+                    text-slate-700
+                  "
+                >
                   Username
 
                   <input
@@ -261,14 +497,41 @@ const Register = () => {
                     autoComplete="username"
                     required
                     disabled={isSubmitting}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
+                    className="
+                      mt-2
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-slate-50
+                      px-4
+                      py-3
+                      text-slate-900
+                      outline-none
+                      transition
+                      placeholder:text-slate-400
+                      focus:border-indigo-500
+                      focus:ring-4
+                      focus:ring-indigo-500/10
+                      disabled:opacity-60
+                    "
                   />
                 </label>
 
               </div>
 
-              {/* Email */}
-              <label className="block text-sm font-medium text-slate-700">
+              {/* =================================================
+                  EMAIL
+              ================================================= */}
+
+              <label
+                className="
+                  block
+                  text-sm
+                  font-medium
+                  text-slate-700
+                "
+              >
                 Email address
 
                 <input
@@ -280,14 +543,49 @@ const Register = () => {
                   autoComplete="email"
                   required
                   disabled={isSubmitting}
-                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
+                  className="
+                    mt-2
+                    w-full
+                    rounded-xl
+                    border
+                    border-slate-200
+                    bg-slate-50
+                    px-4
+                    py-3
+                    text-slate-900
+                    outline-none
+                    transition
+                    placeholder:text-slate-400
+                    focus:border-indigo-500
+                    focus:ring-4
+                    focus:ring-indigo-500/10
+                    disabled:opacity-60
+                  "
                 />
               </label>
 
-              {/* Passwords */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* =================================================
+                  PASSWORDS
+              ================================================= */}
 
-                <label className="block text-sm font-medium text-slate-700">
+              <div
+                className="
+                  grid
+                  gap-4
+                  sm:grid-cols-2
+                "
+              >
+
+                {/* Password */}
+
+                <label
+                  className="
+                    block
+                    text-sm
+                    font-medium
+                    text-slate-700
+                  "
+                >
                   Password
 
                   <input
@@ -300,11 +598,37 @@ const Register = () => {
                     minLength={6}
                     required
                     disabled={isSubmitting}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
+                    className="
+                      mt-2
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-slate-50
+                      px-4
+                      py-3
+                      text-slate-900
+                      outline-none
+                      transition
+                      placeholder:text-slate-400
+                      focus:border-indigo-500
+                      focus:ring-4
+                      focus:ring-indigo-500/10
+                      disabled:opacity-60
+                    "
                   />
                 </label>
 
-                <label className="block text-sm font-medium text-slate-700">
+                {/* Confirm Password */}
+
+                <label
+                  className="
+                    block
+                    text-sm
+                    font-medium
+                    text-slate-700
+                  "
+                >
                   Confirm password
 
                   <input
@@ -317,42 +641,117 @@ const Register = () => {
                     minLength={6}
                     required
                     disabled={isSubmitting}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
+                    className="
+                      mt-2
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-slate-50
+                      px-4
+                      py-3
+                      text-slate-900
+                      outline-none
+                      transition
+                      placeholder:text-slate-400
+                      focus:border-indigo-500
+                      focus:ring-4
+                      focus:ring-indigo-500/10
+                      disabled:opacity-60
+                    "
                   />
                 </label>
 
               </div>
 
-              {/* Error */}
+              {/* =================================================
+                  ERROR
+              ================================================= */}
+
               {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-red-200
+                    bg-red-50
+                    px-4
+                    py-3
+                    text-sm
+                    text-red-600
+                  "
+                >
                   {error}
                 </div>
               )}
 
-              {/* Success */}
+              {/* =================================================
+                  SUCCESS
+              ================================================= */}
+
               {success && (
-                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-600">
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-green-200
+                    bg-green-50
+                    px-4
+                    py-3
+                    text-sm
+                    text-green-600
+                  "
+                >
                   {success}
                 </div>
               )}
 
-              {/* Submit */}
+              {/* =================================================
+                  SUBMIT BUTTON
+              ================================================= */}
+
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="
+                  flex
+                  w-full
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-xl
+                  bg-indigo-600
+                  px-4
+                  py-3
+                  font-semibold
+                  text-white
+                  shadow-lg
+                  shadow-indigo-600/20
+                  transition
+                  hover:bg-indigo-700
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
+                "
               >
 
                 {isSubmitting ? (
                   <>
-                    <LoaderCircle className="size-5 animate-spin" />
+                    <LoaderCircle
+                      className="
+                        size-5
+                        animate-spin
+                      "
+                    />
+
                     Creating account...
                   </>
                 ) : (
                   <>
                     Create account
-                    <ArrowRight className="size-5" />
+
+                    <ArrowRight
+                      className="size-5"
+                    />
                   </>
                 )}
 
@@ -360,16 +759,29 @@ const Register = () => {
 
             </form>
 
-            {/* Login */}
-            <p className="mt-6 text-center text-sm text-slate-500">
+            {/* =================================================
+                LOGIN
+            ================================================= */}
 
+            <p
+              className="
+                mt-6
+                text-center
+                text-sm
+                text-slate-500
+              "
+            >
               Already have an account?{" "}
 
               <button
                 type="button"
                 onClick={() => navigate("/")}
                 disabled={isSubmitting}
-                className="font-semibold text-indigo-600 hover:text-indigo-800"
+                className="
+                  font-semibold
+                  text-indigo-600
+                  hover:text-indigo-800
+                "
               >
                 Sign in
               </button>
@@ -378,6 +790,7 @@ const Register = () => {
 
           </div>
         </div>
+
       </div>
     </div>
   );

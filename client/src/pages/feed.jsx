@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import assets from "../assets/assets";
 import Loading from "../Components/loading";
@@ -13,12 +13,21 @@ function Feed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showReels, setShowReels] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const requestInFlight = useRef(false);
   const location = useLocation();
 
-  async function fetchFeeds() {
+  async function fetchFeeds(cursor = null, append = false) {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     try {
+      if (append) setIsLoadingMore(true);
       setError("");
-      const response = await fetch("/api/posts", {
+      const query = new URLSearchParams({ limit: "20" });
+      if (cursor) query.set("cursor", cursor);
+      const response = await fetch(`/api/posts?${query}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
         },
@@ -29,7 +38,9 @@ function Feed() {
         throw new Error(data.message || "Posts could not be loaded");
       }
 
-      setFeed(data.posts);
+      setFeed((current) => append ? [...current, ...data.posts.filter((post) => !current.some((item) => item._id === post._id))] : data.posts);
+      setNextCursor(data.nextCursor);
+      setHasMore(data.hasMore);
         const postId = new URLSearchParams(location.search).get("post");
         if (postId) {
           window.setTimeout(() => {
@@ -40,6 +51,8 @@ function Feed() {
       setError(fetchError.message);
     } finally {
       setLoading(false);
+      setIsLoadingMore(false);
+      requestInFlight.current = false;
     }
   }
 
@@ -52,9 +65,21 @@ function Feed() {
     };
   }, [location.search]);
 
+  useEffect(() => {
+    const scrollContainer = document.querySelector(".feed-scroll-container");
+    if (!scrollContainer) return undefined;
+    const handleScroll = () => {
+      if (hasMore && !isLoadingMore && scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 400) {
+        fetchFeeds(nextCursor, true);
+      }
+    };
+    scrollContainer.addEventListener("scroll", handleScroll);
+    return () => scrollContainer.removeEventListener("scroll", handleScroll);
+  }, [hasMore, isLoadingMore, nextCursor]);
+
   return !loading ? (
 
-    <div className="h-full overflow-y-scroll no scrollbar py-10 xl:pr-5 flex items-start justify-center xl:gap-8">
+    <div className="feed-scroll-container h-full overflow-y-scroll no scrollbar py-10 xl:pr-5 flex items-start justify-center xl:gap-8">
     {showReels && (
       <ReelsViewer
         reels={Feed.filter((post) => post.post_type === "video" && post.image_urls?.[0])}
@@ -82,6 +107,8 @@ function Feed() {
         {!error && Feed.filter((post) => post.post_type !== "video").length === 0 && (
           <p className="p-4 text-sm text-slate-500">No posts yet. Be the first to share something.</p>
         )}
+        {isLoadingMore && <p className="p-4 text-center text-sm text-slate-500">Loading more posts...</p>}
+        {!hasMore && Feed.length > 0 && <p className="p-4 text-center text-sm text-slate-500">You are all caught up.</p>}
       </div>
     </div>
           {/* Right sideBar */}

@@ -92,7 +92,7 @@ function UserProfileInfo({
               className="flex cursor-pointer items-center gap-1 text-left hover:text-indigo-600"
             >
               <span className="text-lg font-bold text-gray-900 sm:text-xl">
-                {user.followers?.length || 0}
+                {user.followers_count ?? (user.followers?.length || 0)}
               </span>
               <span className="text-xs text-gray-500 sm:text-sm">
                 Followers
@@ -105,7 +105,7 @@ function UserProfileInfo({
               className="flex cursor-pointer items-center gap-1 text-left hover:text-indigo-600"
             >
               <span className="text-lg font-bold text-gray-900 sm:text-xl">
-                {user.following?.length || 0}
+                {user.following_count ?? (user.following?.length || 0)}
               </span>
               <span className="text-xs text-gray-500 sm:text-sm">
                 Following

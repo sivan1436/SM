@@ -16,7 +16,7 @@ function Stories() {
 
   async function fetchStories() {
     try {
-      const response = await fetch("/api/stories", {
+      const response = await fetch("/api/stories?limit=30", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
         },
@@ -98,6 +98,7 @@ function Stories() {
       <img
         src={story.media_url}
         alt=""
+        loading="lazy"
         className="absolute inset-0 h-full w-full object-cover opacity-75"
       />
     ) : (
@@ -105,6 +106,7 @@ function Stories() {
         src={story.media_url}
         className="absolute inset-0 h-full w-full object-cover opacity-75"
         muted
+        preload="metadata"
       />
     );
   };

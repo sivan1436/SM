@@ -1,13 +1,19 @@
 import User from "../Models/User.js";
 import mongoose from "mongoose";
+import { parseLimit } from "../utils/pagination.js";
 
 export async function Findusers(req, res) {
     try {
-        const { username } = req.body;
+        const username = typeof req.body.username === "string" ? req.body.username.trim() : "";
+        const limit = parseLimit(req.query.limit || req.body.limit);
+        if (username.length < 2) {
+          return res.status(400).json({ success: false, message: "Search must contain at least 2 characters" });
+        }
 
-        const users = await User.find({
-            username: { $regex: username, $options: "i" }
-        });
+        const users = await User.find({ username: { $regex: `^${username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, $options: "i" } })
+          .select("full_name username profile_picture is_verified bio location")
+          .sort({ username: 1 })
+          .limit(limit);
 
         return res.status(200).json({
             success: true,

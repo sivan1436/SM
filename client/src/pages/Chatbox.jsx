@@ -24,6 +24,9 @@ function ChatBox() {
   const [loadError, setLoadError] = useState("");
   const [sendError, setSendError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [olderCursor, setOlderCursor] = useState(null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [sharedPost, setSharedPost] = useState(location.state?.sharedPost || null);
 
   const messagesEndRef = useRef(null);
@@ -38,7 +41,7 @@ function ChatBox() {
         const headers = { Authorization: `Bearer ${token}` };
         const [userResponse, messagesResponse] = await Promise.all([
           fetch(`/api/messages/users/${userId}`, { headers }),
-          fetch(`/api/messages/${userId}`, { headers }),
+          fetch(`/api/messages/${userId}?limit=30`, { headers }),
         ]);
         const userData = await userResponse.json();
         const messagesData = await messagesResponse.json();
@@ -52,7 +55,9 @@ function ChatBox() {
         }
 
         setUser(userData.user);
-        setMessages(messagesData);
+        setMessages(messagesData.messages || []);
+        setOlderCursor(messagesData.nextCursor);
+        setHasOlderMessages(messagesData.hasMore);
       } catch (error) {
         setLoadError(error.message);
       }
@@ -60,6 +65,28 @@ function ChatBox() {
 
     loadChat();
   }, [userId]);
+
+  async function loadOlderMessages() {
+    if (!olderCursor || !hasOlderMessages || isLoadingOlder) return;
+    setIsLoadingOlder(true);
+    try {
+      const response = await fetch(`/api/messages/${userId}?limit=30&cursor=${encodeURIComponent(olderCursor)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Unable to load older messages");
+      setMessages((current) => {
+        const existing = new Set(current.map((message) => message._id));
+        return [...(data.messages || []).filter((message) => !existing.has(message._id)), ...current];
+      });
+      setOlderCursor(data.nextCursor);
+      setHasOlderMessages(data.hasMore);
+    } catch (error) {
+      setSendError(error.message);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }
 
   // Select multiple images/videos
   const handleFileChange = (e) => {
@@ -248,7 +275,13 @@ function ChatBox() {
         </div>
 
         {/* Messages */}
-        <div className="p-5 md:px-10 flex-1 overflow-y-scroll">
+        <div
+          className="p-5 md:px-10 flex-1 overflow-y-scroll"
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop < 120) loadOlderMessages();
+          }}
+        >
+          {isLoadingOlder && <p className="mb-3 text-center text-xs text-slate-500">Loading older messages...</p>}
           <div className="space-y-3 max-w-4xl mx-auto">
 
             {messages

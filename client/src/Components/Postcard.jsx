@@ -8,12 +8,17 @@ function PostCard({ post }) {
   const currentUser = JSON.parse(localStorage.getItem("user") || "null");
   const currentUserId = currentUser?._id || currentUser?.id;
 
-  const [likes, setLikes] = useState(post.likes_count?.length || 0);
-  const [liked, setLiked] = useState(
-    post.likes_count?.some((id) => String(id) === String(currentUserId)) || false
+  const [likes, setLikes] = useState(
+    typeof post.likes_count === "number" ? post.likes_count : post.likes_count?.length || 0
   );
+  const [liked, setLiked] = useState(post.liked_by_me || (
+    Array.isArray(post.likes_count) && post.likes_count.some((id) => String(id) === String(currentUserId))
+  ));
   const [comments, setComments] = useState(post.comments || []);
-  const [shares, setShares] = useState(post.shares_count?.length || 0);
+  const [commentCount, setCommentCount] = useState(post.comments_count || post.comments?.length || 0);
+  const [shares, setShares] = useState(
+    typeof post.shares_count === "number" ? post.shares_count : post.shares_count?.length || 0
+  );
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +42,7 @@ function PostCard({ post }) {
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message);
       setLiked(data.liked);
-      setLikes(data.post.likes_count?.length || 0);
+      setLikes(typeof data.post.likes_count === "number" ? data.post.likes_count : data.post.likes_count?.length || 0);
     } catch (error) {
       toast.error(error.message || "Like could not be updated");
     }
@@ -58,13 +63,30 @@ function PostCard({ post }) {
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message);
-      setComments(data.post.comments || []);
+      setComments((current) => [...current, data.comment]);
+      setCommentCount(data.comments_count || commentCount + 1);
       setCommentText("");
       setShowComments(true);
     } catch (error) {
       toast.error(error.message || "Comment could not be added");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openComments = async () => {
+    setShowComments(true);
+    if (comments.length || !commentCount) return;
+    try {
+      const response = await fetch(`/api/posts/${post._id}/comments?limit=20`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message);
+      setComments(data.comments || []);
+      setCommentCount(data.comments_count || 0);
+    } catch (error) {
+      toast.error(error.message || "Comments could not be loaded");
     }
   };
 
@@ -93,7 +115,7 @@ function PostCard({ post }) {
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message);
-      setShares(data.post.shares_count?.length || 0);
+      setShares(typeof data.post.shares_count === "number" ? data.post.shares_count : data.post.shares_count?.length || 0);
       navigate(`/messages/${userId}`, { state: { sharedPost: post } });
     } catch (error) {
       toast.error(error.message || "Post could not be shared");
@@ -137,12 +159,13 @@ function PostCard({ post }) {
         <div className="grid grid-cols-2 gap-2 mt-4">
           {post.image_urls.map((img, index) => (
             post.post_type === "video" ? (
-              <video key={index} src={img} controls className="w-full h-48 object-cover rounded-lg" />
+              <video key={index} src={img} controls preload="metadata" className="w-full h-48 object-cover rounded-lg" />
             ) : (
               <img
                 key={index}
                 src={img}
                 alt="Post media"
+                loading="lazy"
                 className={`w-full h-48 object-cover rounded-lg ${
                   post.image_urls.length === 1 ? "col-span-2 h-auto" : ""
                 }`}
@@ -167,11 +190,11 @@ function PostCard({ post }) {
           <span className="ml-1">{likes}</span>
         </button>
         <button
-          onClick={() => setShowComments((previous) => !previous)}
+          onClick={() => showComments ? setShowComments(false) : openComments()}
           className="flex items-center cursor-pointer"
         >
           <MessageSquare className="w-4 h-4" />
-          <span className="ml-1">{comments.length}</span>
+          <span className="ml-1">{commentCount}</span>
         </button>
         <button
           onClick={handleShare}

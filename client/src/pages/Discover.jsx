@@ -25,7 +25,7 @@ function Discover() {
       setLoading(true);
 
       const { data } = await axios.post(
-        "http://localhost:4000/api/users/search",
+        "api/users/search",
         {
           username: searchValue,
           limit: 20,

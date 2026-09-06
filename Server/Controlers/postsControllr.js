@@ -1,25 +1,45 @@
 import Post from "../Models/Posts.js";
 import mongoose from "mongoose";
+import { cursorFilter, decodeCursor, paginatedResult, parseLimit } from "../utils/pagination.js";
 
-const postPopulation = [
-    { path: "user", select: "full_name username profile_picture is_verified" },
-    {
-        path: "comments.user",
-        select: "full_name username profile_picture is_verified",
-    },
-];
+const postPopulation = { path: "user", select: "full_name username profile_picture is_verified" };
 
 async function findPopulatedPost(postId) {
-    return Post.findById(postId).populate(postPopulation);
+    const post = await Post.findById(postId)
+        .select("user content image_urls post_type likes_count comments shares_count createdAt")
+        .populate(postPopulation)
+        .lean();
+    if (!post) return null;
+    return {
+        ...post,
+        likes_count: post.likes_count.length,
+        comments_count: post.comments.length,
+        shares_count: post.shares_count.length,
+        comments: undefined,
+    };
 }
 
-export async function getFeeds(_req, res) {
+export async function getFeeds(req, res) {
     try {
-        const posts = await Post.find()
+        const limit = parseLimit(req.query.limit);
+        const cursor = decodeCursor(req.query.cursor);
+        const posts = await Post.find(cursorFilter(cursor))
+            .select("user content image_urls post_type likes_count comments shares_count createdAt")
             .populate(postPopulation)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1, _id: -1 })
+            .limit(limit + 1)
+            .lean();
+        const normalizedPosts = posts.map((post) => ({
+            ...post,
+            liked_by_me: post.likes_count?.some((id) => String(id) === String(req.user.id)) || false,
+            likes_count: post.likes_count?.length || 0,
+            comments_count: post.comments?.length || 0,
+            shares_count: post.shares_count?.length || 0,
+            comments: undefined,
+        }));
+        const result = paginatedResult(normalizedPosts, limit);
 
-        return res.status(200).json({ success: true, posts });
+        return res.status(200).json({ success: true, posts: result.items, nextCursor: result.nextCursor, hasMore: result.hasMore });
     } catch (error) {
         return res.status(500).json({
             success: false,
@@ -75,7 +95,16 @@ export async function addComment(req, res) {
             return res.status(404).json({ success: false, message: "Post not found" });
         }
 
-        return res.status(201).json({ success: true, post: await findPopulatedPost(post._id) });
+        const updatedPost = await Post.findById(post._id)
+            .select("comments")
+            .populate("comments.user", "full_name username profile_picture is_verified")
+            .lean();
+        const comment = updatedPost.comments[updatedPost.comments.length - 1];
+        return res.status(201).json({
+            success: true,
+            comment,
+            comments_count: updatedPost.comments.length,
+        });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Comment could not be added" });
     }
@@ -145,5 +174,37 @@ export async function createPost(req, res) {
             message: "Post could not be created",
             error: error.message,
         });
+    }
+}
+
+export async function getComments(req, res) {
+    try {
+        if (!mongoose.isValidObjectId(req.params.postId)) {
+            return res.status(400).json({ success: false, message: "Invalid post id" });
+        }
+
+        const limit = parseLimit(req.query.limit);
+        const post = await Post.findById(req.params.postId)
+            .select("comments")
+            .populate("comments.user", "full_name username profile_picture is_verified")
+            .lean();
+        if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+
+        const offset = req.query.cursor
+            ? Number.parseInt(Buffer.from(req.query.cursor, "base64url").toString("utf8"), 10) || 0
+            : 0;
+        const reversedComments = post.comments.slice().reverse();
+        const comments = reversedComments.slice(offset, offset + limit);
+        return res.json({
+            success: true,
+            comments,
+            nextCursor: offset + comments.length < reversedComments.length
+                ? Buffer.from(String(offset + comments.length)).toString("base64url")
+                : null,
+            hasMore: offset + comments.length < reversedComments.length,
+            comments_count: post.comments.length,
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Comments could not be retrieved" });
     }
 }

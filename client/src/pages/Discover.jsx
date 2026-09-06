@@ -28,6 +28,7 @@ function Discover() {
         "http://localhost:4000/api/users/search",
         {
           username: searchValue,
+          limit: 20,
         }
       );
 

@@ -4,10 +4,35 @@ import MenuItems from "./MenuItems";
 import { Link } from "react-router-dom";
 import { CirclePlus, LogOut } from "lucide-react";
 import sidebarLogo from "../assets/sidebar-logo.svg";
+import { useEffect, useState } from "react";
 
 function Sidebar({ sideBarOpen, setSideBarOpen }) {
     const navigate = useNavigate();
-    const user = dummyUserData
+    const [user, setUser] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem("user")) || dummyUserData;
+        } catch {
+            return dummyUserData;
+        }
+    });
+
+    useEffect(() => {
+        const userId = user?._id || user?.id;
+        const token = localStorage.getItem("token");
+        if (!userId || !token) return;
+
+        fetch(`/api/messages/users/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success && data.user) {
+                    setUser(data.user);
+                    localStorage.setItem("user", JSON.stringify(data.user));
+                }
+            })
+            .catch(() => {});
+    }, []);
     const handleSignOut = () => {
         localStorage.removeItem("user");
         localStorage.removeItem("token");

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BadgeCheck, Heart, MessageSquare, Send, Share2Icon } from "lucide-react";
+import { BadgeCheck, Heart, MessageSquare, Send, Share2Icon, X } from "lucide-react";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -8,15 +8,23 @@ function PostCard({ post }) {
   const currentUser = JSON.parse(localStorage.getItem("user") || "null");
   const currentUserId = currentUser?._id || currentUser?.id;
 
-  const [likes, setLikes] = useState(post.likes_count?.length || 0);
-  const [liked, setLiked] = useState(
-    post.likes_count?.some((id) => String(id) === String(currentUserId)) || false
+  const [likes, setLikes] = useState(
+    typeof post.likes_count === "number" ? post.likes_count : post.likes_count?.length || 0
   );
+  const [liked, setLiked] = useState(post.liked_by_me || (
+    Array.isArray(post.likes_count) && post.likes_count.some((id) => String(id) === String(currentUserId))
+  ));
   const [comments, setComments] = useState(post.comments || []);
-  const [shares, setShares] = useState(post.shares_count?.length || 0);
+  const [commentCount, setCommentCount] = useState(post.comments_count || post.comments?.length || 0);
+  const [shares, setShares] = useState(
+    typeof post.shares_count === "number" ? post.shares_count : post.shares_count?.length || 0
+  );
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [shareUsers, setShareUsers] = useState([]);
+  const [isLoadingShareUsers, setIsLoadingShareUsers] = useState(false);
 
   const postWithHashTags = post.content
     ? post.content.replace(
@@ -34,7 +42,7 @@ function PostCard({ post }) {
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message);
       setLiked(data.liked);
-      setLikes(data.post.likes_count?.length || 0);
+      setLikes(typeof data.post.likes_count === "number" ? data.post.likes_count : data.post.likes_count?.length || 0);
     } catch (error) {
       toast.error(error.message || "Like could not be updated");
     }
@@ -55,7 +63,8 @@ function PostCard({ post }) {
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message);
-      setComments(data.post.comments || []);
+      setComments((current) => [...current, data.comment]);
+      setCommentCount(data.comments_count || commentCount + 1);
       setCommentText("");
       setShowComments(true);
     } catch (error) {
@@ -65,7 +74,40 @@ function PostCard({ post }) {
     }
   };
 
+  const openComments = async () => {
+    setShowComments(true);
+    if (comments.length || !commentCount) return;
+    try {
+      const response = await fetch(`/api/posts/${post._id}/comments?limit=20`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message);
+      setComments(data.comments || []);
+      setCommentCount(data.comments_count || 0);
+    } catch (error) {
+      toast.error(error.message || "Comments could not be loaded");
+    }
+  };
+
   const handleShare = async () => {
+    setShowShareOptions(true);
+    setIsLoadingShareUsers(true);
+    try {
+      const response = await fetch("/api/messages", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+      const data = await response.json();
+      if (!response.ok || !Array.isArray(data)) throw new Error(data.message);
+      setShareUsers(data.map(({ user }) => user));
+    } catch (error) {
+      toast.error(error.message || "Post could not be shared");
+    } finally {
+      setIsLoadingShareUsers(false);
+    }
+  };
+
+  const sharePostWithUser = async (userId) => {
     try {
       const response = await fetch(`/api/posts/${post._id}/share`, {
         method: "POST",
@@ -73,9 +115,8 @@ function PostCard({ post }) {
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message);
-      setShares(data.post.shares_count?.length || 0);
-      await navigator.clipboard.writeText(`${window.location.origin}/feed?post=${post._id}`);
-      toast.success("Post link copied");
+      setShares(typeof data.post.shares_count === "number" ? data.post.shares_count : data.post.shares_count?.length || 0);
+      navigate(`/messages/${userId}`, { state: { sharedPost: post } });
     } catch (error) {
       toast.error(error.message || "Post could not be shared");
     }
@@ -83,7 +124,7 @@ function PostCard({ post }) {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 w-full max-w-2xl">
+    <div id={`post-${post._id}`} className="bg-white rounded-xl shadow p-4 w-full max-w-2xl">
 
       {/* User Information */}
       <div  onClick={()=>navigate('/profile/'+post.user._id)} className="flex items-center gap-3 cursor-pointer">
@@ -118,12 +159,13 @@ function PostCard({ post }) {
         <div className="grid grid-cols-2 gap-2 mt-4">
           {post.image_urls.map((img, index) => (
             post.post_type === "video" ? (
-              <video key={index} src={img} controls className="w-full h-48 object-cover rounded-lg" />
+              <video key={index} src={img} controls preload="metadata" className="w-full h-48 object-cover rounded-lg" />
             ) : (
               <img
                 key={index}
                 src={img}
                 alt="Post media"
+                loading="lazy"
                 className={`w-full h-48 object-cover rounded-lg ${
                   post.image_urls.length === 1 ? "col-span-2 h-auto" : ""
                 }`}
@@ -148,11 +190,11 @@ function PostCard({ post }) {
           <span className="ml-1">{likes}</span>
         </button>
         <button
-          onClick={() => setShowComments((previous) => !previous)}
+          onClick={() => showComments ? setShowComments(false) : openComments()}
           className="flex items-center cursor-pointer"
         >
           <MessageSquare className="w-4 h-4" />
-          <span className="ml-1">{comments.length}</span>
+          <span className="ml-1">{commentCount}</span>
         </button>
         <button
           onClick={handleShare}
@@ -198,6 +240,36 @@ function PostCard({ post }) {
               <Send className="h-4 w-4" />
             </button>
           </form>
+        </div>
+      )}
+
+      {showShareOptions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold text-slate-800">Share post in chat</h2>
+              <button type="button" onClick={() => setShowShareOptions(false)} aria-label="Close share options">
+                <X className="size-5" />
+              </button>
+            </div>
+            {isLoadingShareUsers && <p className="text-sm text-slate-500">Loading contacts...</p>}
+            {!isLoadingShareUsers && !shareUsers.length && (
+              <p className="text-sm text-slate-500">No contacts available.</p>
+            )}
+            <div className="max-h-72 space-y-2 overflow-y-auto">
+              {shareUsers.map((user) => (
+                <button
+                  type="button"
+                  key={user._id}
+                  onClick={() => sharePostWithUser(user._id)}
+                  className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-slate-100"
+                >
+                  <img src={user.profile_picture} alt="" className="size-9 rounded-full object-cover" />
+                  <span className="font-medium text-slate-700">{user.full_name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
       

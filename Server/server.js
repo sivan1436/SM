@@ -11,7 +11,7 @@ import storyRoutes from "./Routes/storyRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
-await dotenv.config();
+await dotenv.config({ quiet: true });
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET is required");
 }

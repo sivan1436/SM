@@ -1,6 +1,7 @@
 import express from "express";
 import {
 	addComment,
+	getComments,
 	createPost,
 	getFeeds,
 	sharePost,
@@ -15,6 +16,7 @@ route.get("/", authMiddleware, getFeeds);
 route.post("/", authMiddleware, postUpload, createPost);
 route.patch("/:postId/like", authMiddleware, toggleLike);
 route.post("/:postId/comments", authMiddleware, addComment);
+route.get("/:postId/comments", authMiddleware, getComments);
 route.post("/:postId/share", authMiddleware, sharePost);
 
 export default route;

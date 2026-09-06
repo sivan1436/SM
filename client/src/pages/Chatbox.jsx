@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ImageIcon,
   SendHorizonal,
@@ -13,6 +13,7 @@ import {
 function ChatBox() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [text, setText] = useState("");
   const [images, setImages] = useState([]);
@@ -23,6 +24,10 @@ function ChatBox() {
   const [loadError, setLoadError] = useState("");
   const [sendError, setSendError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [olderCursor, setOlderCursor] = useState(null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [sharedPost, setSharedPost] = useState(location.state?.sharedPost || null);
 
   const messagesEndRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -36,7 +41,7 @@ function ChatBox() {
         const headers = { Authorization: `Bearer ${token}` };
         const [userResponse, messagesResponse] = await Promise.all([
           fetch(`/api/messages/users/${userId}`, { headers }),
-          fetch(`/api/messages/${userId}`, { headers }),
+          fetch(`/api/messages/${userId}?limit=30`, { headers }),
         ]);
         const userData = await userResponse.json();
         const messagesData = await messagesResponse.json();
@@ -50,7 +55,9 @@ function ChatBox() {
         }
 
         setUser(userData.user);
-        setMessages(messagesData);
+        setMessages(messagesData.messages || []);
+        setOlderCursor(messagesData.nextCursor);
+        setHasOlderMessages(messagesData.hasMore);
       } catch (error) {
         setLoadError(error.message);
       }
@@ -58,6 +65,28 @@ function ChatBox() {
 
     loadChat();
   }, [userId]);
+
+  async function loadOlderMessages() {
+    if (!olderCursor || !hasOlderMessages || isLoadingOlder) return;
+    setIsLoadingOlder(true);
+    try {
+      const response = await fetch(`/api/messages/${userId}?limit=30&cursor=${encodeURIComponent(olderCursor)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Unable to load older messages");
+      setMessages((current) => {
+        const existing = new Set(current.map((message) => message._id));
+        return [...(data.messages || []).filter((message) => !existing.has(message._id)), ...current];
+      });
+      setOlderCursor(data.nextCursor);
+      setHasOlderMessages(data.hasMore);
+    } catch (error) {
+      setSendError(error.message);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }
 
   // Select multiple images/videos
   const handleFileChange = (e) => {
@@ -151,7 +180,8 @@ function ChatBox() {
     if (
       !text.trim() &&
       images.length === 0 &&
-      !audio
+      !audio &&
+      !sharedPost
     ) {
       return;
     }
@@ -164,6 +194,7 @@ function ChatBox() {
       formData.append("text", text.trim());
       images.forEach((file) => formData.append("media", file));
       if (audio) formData.append("media", audio, "voice-message.webm");
+      if (sharedPost) formData.append("shared_post_id", sharedPost._id);
 
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/messages/${userId}`, {
@@ -184,6 +215,8 @@ function ChatBox() {
       setText("");
       setImages([]);
       setAudio(null);
+      setSharedPost(null);
+      navigate(location.pathname, { replace: true, state: {} });
     } catch (error) {
       setSendError(error.message);
     } finally {
@@ -242,7 +275,13 @@ function ChatBox() {
         </div>
 
         {/* Messages */}
-        <div className="p-5 md:px-10 flex-1 overflow-y-scroll">
+        <div
+          className="p-5 md:px-10 flex-1 overflow-y-scroll"
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop < 120) loadOlderMessages();
+          }}
+        >
+          {isLoadingOlder && <p className="mb-3 text-center text-xs text-slate-500">Loading older messages...</p>}
           <div className="space-y-3 max-w-4xl mx-auto">
 
             {messages
@@ -274,6 +313,45 @@ function ChatBox() {
                           : "bg-white rounded-bl-none"
                       }`}
                     >
+
+                      {sharedPost && index === messages.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/feed?post=${sharedPost._id}`)}
+                          className="mb-1 block w-full overflow-hidden rounded-lg bg-slate-50 text-left hover:bg-slate-100"
+                        >
+                          {sharedPost.image_urls?.[0] && (
+                            <img
+                              src={sharedPost.image_urls[0]}
+                              alt="Shared post"
+                              className="h-32 w-full object-cover"
+                            />
+                          )}
+                          <span className="block p-2 text-sm text-slate-700">
+                            {sharedPost.content || "Shared a post with you"}
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Image */}
+                      {message.message_type === "shared_post" && message.shared_post && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/feed?post=${message.shared_post._id}`)}
+                          className="mb-1 block w-full overflow-hidden rounded-lg bg-slate-50 text-left hover:bg-slate-100"
+                        >
+                          {message.shared_post.image_urls?.[0] && (
+                            <img
+                              src={message.shared_post.image_urls[0]}
+                              alt="Shared post"
+                              className="h-32 w-full object-cover"
+                            />
+                          )}
+                          <span className="block p-2 text-sm text-slate-700">
+                            {message.shared_post.content || "Shared a post with you"}
+                          </span>
+                        </button>
+                      )}
 
                       {/* Image */}
                       {message.message_type ===

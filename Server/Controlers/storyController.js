@@ -1,21 +1,26 @@
 import Story from "../Models/Stories.js";
 import mongoose from "mongoose";
+import { cursorFilter, decodeCursor, paginatedResult, parseLimit } from "../utils/pagination.js";
 
 const storyUserFields = "full_name username profile_picture is_verified";
 
 export async function getStories(req, res) {
 	try {
 		const expiryDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-		await Story.deleteMany({ createdAt: { $lt: expiryDate } });
-		const stories = await Story.find({ createdAt: { $gte: expiryDate } })
+		const limit = parseLimit(req.query.limit);
+		const cursor = decodeCursor(req.query.cursor);
+		const stories = await Story.find({ createdAt: { $gte: expiryDate }, ...cursorFilter(cursor) })
 			.populate("user", storyUserFields)
-			.sort({ createdAt: -1 });
+			.sort({ createdAt: -1, _id: -1 })
+			.limit(limit + 1)
+			.lean();
 		const storiesWithOwnership = stories.map((story) => ({
-			...story.toObject(),
+			...story,
 			is_owner: String(story.user?._id) === String(req.user.id),
 		}));
+		const result = paginatedResult(storiesWithOwnership, limit);
 
-		return res.json({ success: true, stories: storiesWithOwnership });
+		return res.json({ success: true, stories: result.items, nextCursor: result.nextCursor, hasMore: result.hasMore });
 	} catch (error) {
 		return res.status(500).json({
 			success: false,

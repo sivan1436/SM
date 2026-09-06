@@ -6,7 +6,14 @@ import {
 } from "lucide-react";
 import moment from "moment";
 
-function UserProfileInfo({ user, posts, isOwnProfile, setShowEdit }) {
+function UserProfileInfo({
+  user,
+  posts,
+  isOwnProfile,
+  setShowEdit,
+  onFollowersClick,
+  onFollowingClick,
+}) {
   return (
     <div className="relative bg-white px-4 py-4 md:px-8">
       <div className="flex flex-col items-start gap-6 md:flex-row">
@@ -79,23 +86,31 @@ function UserProfileInfo({ user, posts, isOwnProfile, setShowEdit }) {
               </span>
             </div>
 
-            <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onFollowersClick}
+              className="flex cursor-pointer items-center gap-1 text-left hover:text-indigo-600"
+            >
               <span className="text-lg font-bold text-gray-900 sm:text-xl">
                 {user.followers?.length || 0}
               </span>
               <span className="text-xs text-gray-500 sm:text-sm">
                 Followers
               </span>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onFollowingClick}
+              className="flex cursor-pointer items-center gap-1 text-left hover:text-indigo-600"
+            >
               <span className="text-lg font-bold text-gray-900 sm:text-xl">
                 {user.following?.length || 0}
               </span>
               <span className="text-xs text-gray-500 sm:text-sm">
                 Following
               </span>
-            </div>
+            </button>
           </div>
         </div>
       </div>

@@ -9,8 +9,8 @@ function Sidebar({ sideBarOpen, setSideBarOpen }) {
     const navigate = useNavigate();
     const user = dummyUserData
     const handleSignOut = () => {
-        localStorage.removeItem("scrink-signed-in");
-        localStorage.removeItem("scrink-user-email");
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
         navigate("/", { replace: true });
     };
     return (

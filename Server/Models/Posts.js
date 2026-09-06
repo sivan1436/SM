@@ -37,6 +37,29 @@ const postSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    comments: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        content: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: 1000,
+        },
+      },
+    ],
+
+    shares_count: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

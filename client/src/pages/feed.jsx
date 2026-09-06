@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import assets from "../assets/assets";
 import Loading from "../Components/loading";
 import Stories from "../Components/StoriesBar";
 import PostCard from "../Components/Postcard";
 import RecentMessages from "../Components/RecentMessages";
+import ReelsViewer from "../Components/ReelsViewer";
+import { Video } from "lucide-react";
 
 function Feed() {
   const [Feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showReels, setShowReels] = useState(false);
+  const location = useLocation();
 
   async function fetchFeeds() {
     try {
@@ -25,6 +30,12 @@ function Feed() {
       }
 
       setFeed(data.posts);
+        const postId = new URLSearchParams(location.search).get("post");
+        if (postId) {
+          window.setTimeout(() => {
+            document.getElementById(`post-${postId}`)?.scrollIntoView({ behavior: "smooth" });
+          }, 0);
+        }
     } catch (fetchError) {
       setError(fetchError.message);
     } finally {
@@ -39,20 +50,36 @@ function Feed() {
       window.clearTimeout(initialFetch);
       window.removeEventListener("focus", fetchFeeds);
     };
-  }, []);
+  }, [location.search]);
 
   return !loading ? (
 
     <div className="h-full overflow-y-scroll no scrollbar py-10 xl:pr-5 flex items-start justify-center xl:gap-8">
+    {showReels && (
+      <ReelsViewer
+        reels={Feed.filter((post) => post.post_type === "video" && post.image_urls?.[0])}
+        onClose={() => setShowReels(false)}
+      />
+    )}
+    <button
+      type="button"
+      onClick={() => setShowReels(true)}
+      disabled={!Feed.some((post) => post.post_type === "video" && post.image_urls?.[0])}
+      aria-label="Open reels"
+      className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-white shadow-lg transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <Video className="size-5" />
+      Reels
+    </button>
     {/* Stories and postlist */}
     <div>
      <Stories />
       <div className="p-4 space-y-6">
         {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-        {!error && Feed.map((post)=>(
+        {!error && Feed.filter((post) => post.post_type !== "video").map((post)=>(
           <PostCard key={post._id} post={post}/>
         ))}
-        {!error && Feed.length === 0 && (
+        {!error && Feed.filter((post) => post.post_type !== "video").length === 0 && (
           <p className="p-4 text-sm text-slate-500">No posts yet. Be the first to share something.</p>
         )}
       </div>

@@ -23,13 +23,19 @@ const messageSchema = new mongoose.Schema(
 
     message_type: {
       type: String,
-      enum: ["text", "image", "video", "audio", "file"],
+      enum: ["text", "image", "video", "audio", "file", "shared_post"],
       default: "text",
     },
 
     media_url: {
       type: String,
       default: "",
+    },
+
+    shared_post: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      default: null,
     },
 
     seen: {

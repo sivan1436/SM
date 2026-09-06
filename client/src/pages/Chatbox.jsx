@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ImageIcon,
   SendHorizonal,
@@ -13,6 +13,7 @@ import {
 function ChatBox() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [text, setText] = useState("");
   const [images, setImages] = useState([]);
@@ -23,6 +24,7 @@ function ChatBox() {
   const [loadError, setLoadError] = useState("");
   const [sendError, setSendError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [sharedPost, setSharedPost] = useState(location.state?.sharedPost || null);
 
   const messagesEndRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -151,7 +153,8 @@ function ChatBox() {
     if (
       !text.trim() &&
       images.length === 0 &&
-      !audio
+      !audio &&
+      !sharedPost
     ) {
       return;
     }
@@ -164,6 +167,7 @@ function ChatBox() {
       formData.append("text", text.trim());
       images.forEach((file) => formData.append("media", file));
       if (audio) formData.append("media", audio, "voice-message.webm");
+      if (sharedPost) formData.append("shared_post_id", sharedPost._id);
 
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/messages/${userId}`, {
@@ -184,6 +188,8 @@ function ChatBox() {
       setText("");
       setImages([]);
       setAudio(null);
+      setSharedPost(null);
+      navigate(location.pathname, { replace: true, state: {} });
     } catch (error) {
       setSendError(error.message);
     } finally {
@@ -274,6 +280,45 @@ function ChatBox() {
                           : "bg-white rounded-bl-none"
                       }`}
                     >
+
+                      {sharedPost && index === messages.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/feed?post=${sharedPost._id}`)}
+                          className="mb-1 block w-full overflow-hidden rounded-lg bg-slate-50 text-left hover:bg-slate-100"
+                        >
+                          {sharedPost.image_urls?.[0] && (
+                            <img
+                              src={sharedPost.image_urls[0]}
+                              alt="Shared post"
+                              className="h-32 w-full object-cover"
+                            />
+                          )}
+                          <span className="block p-2 text-sm text-slate-700">
+                            {sharedPost.content || "Shared a post with you"}
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Image */}
+                      {message.message_type === "shared_post" && message.shared_post && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/feed?post=${message.shared_post._id}`)}
+                          className="mb-1 block w-full overflow-hidden rounded-lg bg-slate-50 text-left hover:bg-slate-100"
+                        >
+                          {message.shared_post.image_urls?.[0] && (
+                            <img
+                              src={message.shared_post.image_urls[0]}
+                              alt="Shared post"
+                              className="h-32 w-full object-cover"
+                            />
+                          )}
+                          <span className="block p-2 text-sm text-slate-700">
+                            {message.shared_post.content || "Shared a post with you"}
+                          </span>
+                        </button>
+                      )}
 
                       {/* Image */}
                       {message.message_type ===

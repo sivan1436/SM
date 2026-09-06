@@ -107,7 +107,12 @@ export async function getConversation(req, res) {
 				{ from_user_id: req.user.id, to_user_id: userId },
 				{ from_user_id: userId, to_user_id: req.user.id },
 			],
-		}).sort({ createdAt: 1 });
+		})
+			.populate({
+				path: "shared_post",
+				populate: { path: "user", select: "full_name username profile_picture is_verified" },
+			})
+			.sort({ createdAt: 1 });
 
 		return res.json(messages);
 	} catch (error) {
@@ -120,6 +125,7 @@ export async function sendMessage(req, res) {
 	try {
 		const { userId } = req.params;
 		const text = req.body.text?.trim() || "";
+		const sharedPostId = req.body.shared_post_id?.trim() || "";
 
 		if (!mongoose.isValidObjectId(userId)) {
 			return res.status(400).json({ message: "Invalid user id" });
@@ -135,7 +141,18 @@ export async function sendMessage(req, res) {
 		}
 
 		const uploadedFiles = req.files || [];
-		if (!text && uploadedFiles.length === 0) {
+		let sharedPost = null;
+		if (sharedPostId) {
+			if (!mongoose.isValidObjectId(sharedPostId)) {
+				return res.status(400).json({ message: "Invalid shared post" });
+			}
+			sharedPost = await Post.exists({ _id: sharedPostId });
+			if (!sharedPost) {
+				return res.status(404).json({ message: "Shared post not found" });
+			}
+		}
+
+		if (!text && !sharedPost && uploadedFiles.length === 0) {
 			return res.status(400).json({ message: "Message cannot be empty" });
 		}
 
@@ -146,6 +163,15 @@ export async function sendMessage(req, res) {
 				to_user_id: userId,
 				text,
 				message_type: "text",
+			});
+		}
+
+		if (sharedPost) {
+			messages.push({
+				from_user_id: req.user.id,
+				to_user_id: userId,
+				message_type: "shared_post",
+				shared_post: sharedPostId,
 			});
 		}
 
@@ -165,6 +191,10 @@ export async function sendMessage(req, res) {
 		}
 
 		const createdMessages = await Message.insertMany(messages);
+		await Message.populate(createdMessages, {
+			path: "shared_post",
+			populate: { path: "user", select: "full_name username profile_picture is_verified" },
+		});
 		return res.status(201).json({
 			success: true,
 			messages: createdMessages,

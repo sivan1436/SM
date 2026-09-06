@@ -24,71 +24,280 @@ function ChatBox() {
   const [loadError, setLoadError] = useState("");
   const [sendError, setSendError] = useState("");
   const [isSending, setIsSending] = useState(false);
+
   const [olderCursor, setOlderCursor] = useState(null);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [sharedPost, setSharedPost] = useState(location.state?.sharedPost || null);
 
+  const [sharedPost, setSharedPost] = useState(
+    location.state?.sharedPost || null
+  );
+
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
+
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioStreamRef = useRef(null);
 
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD USER + INITIAL MESSAGES
+  |--------------------------------------------------------------------------
+  */
+
   useEffect(() => {
+    let cancelled = false;
+
     async function loadChat() {
       try {
+        setLoadError("");
+
         const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-        const [userResponse, messagesResponse] = await Promise.all([
-          fetch(`/api/messages/users/${userId}`, { headers }),
-          fetch(`/api/messages/${userId}?limit=30`, { headers }),
-        ]);
+
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        const [userResponse, messagesResponse] =
+          await Promise.all([
+            fetch(`/api/messages/users/${userId}`, {
+              headers,
+            }),
+
+            fetch(`/api/messages/${userId}?limit=30`, {
+              headers,
+            }),
+          ]);
+
         const userData = await userResponse.json();
         const messagesData = await messagesResponse.json();
 
+        if (cancelled) return;
+
         if (!userResponse.ok || !userData.success) {
-          throw new Error(userData.message || "Unable to load user");
+          throw new Error(
+            userData.message || "Unable to load user"
+          );
         }
 
         if (!messagesResponse.ok) {
-          throw new Error(messagesData.message || "Unable to load messages");
+          throw new Error(
+            messagesData.message ||
+              "Unable to load messages"
+          );
         }
 
         setUser(userData.user);
-        setMessages(messagesData.messages || []);
+
+        setMessages(
+          (messagesData.messages || []).sort(
+            (a, b) =>
+              new Date(a.createdAt) -
+              new Date(b.createdAt)
+          )
+        );
+
         setOlderCursor(messagesData.nextCursor);
         setHasOlderMessages(messagesData.hasMore);
       } catch (error) {
-        setLoadError(error.message);
+        if (!cancelled) {
+          console.error("Load chat error:", error);
+          setLoadError(error.message);
+        }
       }
     }
 
     loadChat();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
+  /*
+  |--------------------------------------------------------------------------
+  | MARK MESSAGES AS SEEN
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    async function markMessagesSeen() {
+      try {
+        const token = localStorage.getItem("token");
+
+        await fetch(`/api/messages/${userId}/seen`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } catch (error) {
+        console.error(
+          "Mark messages seen error:",
+          error
+        );
+      }
+    }
+
+    if (userId) {
+      markMessagesSeen();
+    }
+  }, [userId]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | DYNAMIC MESSAGE POLLING
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshMessages() {
+      try {
+        const token = localStorage.getItem("token");
+
+        const response = await fetch(
+          `/api/messages/${userId}?limit=30`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || cancelled) return;
+
+        const incomingMessages = data.messages || [];
+
+        setMessages((currentMessages) => {
+          const messageMap = new Map();
+
+          currentMessages.forEach((message) => {
+            messageMap.set(
+              String(message._id),
+              message
+            );
+          });
+
+          incomingMessages.forEach((message) => {
+            messageMap.set(
+              String(message._id),
+              message
+            );
+          });
+
+          return Array.from(messageMap.values()).sort(
+            (a, b) =>
+              new Date(a.createdAt) -
+              new Date(b.createdAt)
+          );
+        });
+
+        setOlderCursor(data.nextCursor);
+        setHasOlderMessages(data.hasMore);
+      } catch (error) {
+        console.error(
+          "Message refresh error:",
+          error
+        );
+      }
+    }
+
+    const interval = setInterval(
+      refreshMessages,
+      2500
+    );
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [userId]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD OLDER MESSAGES
+  |--------------------------------------------------------------------------
+  */
+
   async function loadOlderMessages() {
-    if (!olderCursor || !hasOlderMessages || isLoadingOlder) return;
+    if (
+      !olderCursor ||
+      !hasOlderMessages ||
+      isLoadingOlder
+    ) {
+      return;
+    }
+
     setIsLoadingOlder(true);
+
     try {
-      const response = await fetch(`/api/messages/${userId}?limit=30&cursor=${encodeURIComponent(olderCursor)}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
-      });
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        `/api/messages/${userId}?limit=30&cursor=${encodeURIComponent(
+          olderCursor
+        )}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Unable to load older messages");
-      setMessages((current) => {
-        const existing = new Set(current.map((message) => message._id));
-        return [...(data.messages || []).filter((message) => !existing.has(message._id)), ...current];
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Unable to load older messages"
+        );
+      }
+
+      setMessages((currentMessages) => {
+        const existing = new Set(
+          currentMessages.map((message) =>
+            String(message._id)
+          )
+        );
+
+        const olderMessages = (
+          data.messages || []
+        ).filter(
+          (message) =>
+            !existing.has(String(message._id))
+        );
+
+        return [
+          ...olderMessages,
+          ...currentMessages,
+        ];
       });
+
       setOlderCursor(data.nextCursor);
       setHasOlderMessages(data.hasMore);
     } catch (error) {
+      console.error(
+        "Load older messages error:",
+        error
+      );
+
       setSendError(error.message);
     } finally {
       setIsLoadingOlder(false);
     }
   }
 
-  // Select multiple images/videos
+  /*
+  |--------------------------------------------------------------------------
+  | FILE SELECTION
+  |--------------------------------------------------------------------------
+  */
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
@@ -100,19 +309,32 @@ function ChatBox() {
         file.type.startsWith("video/")
     );
 
-    setImages((prev) => [...prev, ...validFiles]);
+    setImages((prev) => [
+      ...prev,
+      ...validFiles,
+    ]);
 
     e.target.value = "";
   };
 
-  // Remove image/video
+  /*
+  |--------------------------------------------------------------------------
+  | REMOVE MEDIA
+  |--------------------------------------------------------------------------
+  */
+
   const removeImage = (index) => {
     setImages((prev) =>
       prev.filter((_, i) => i !== index)
     );
   };
 
-  // Start recording
+  /*
+  |--------------------------------------------------------------------------
+  | RECORD AUDIO
+  |--------------------------------------------------------------------------
+  */
+
   const startRecording = async () => {
     try {
       const stream =
@@ -129,7 +351,9 @@ function ChatBox() {
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+          audioChunksRef.current.push(
+            event.data
+          );
         }
       };
 
@@ -143,9 +367,9 @@ function ChatBox() {
 
         setAudio(audioBlob);
 
-        stream.getTracks().forEach((track) => {
-          track.stop();
-        });
+        stream
+          .getTracks()
+          .forEach((track) => track.stop());
 
         audioStreamRef.current = null;
       };
@@ -154,7 +378,10 @@ function ChatBox() {
 
       setIsRecording(true);
     } catch (error) {
-      console.error("Microphone error:", error);
+      console.error(
+        "Microphone error:",
+        error
+      );
 
       alert(
         "Microphone permission is required to record voice messages."
@@ -162,7 +389,12 @@ function ChatBox() {
     }
   };
 
-  // Stop recording
+  /*
+  |--------------------------------------------------------------------------
+  | STOP RECORDING
+  |--------------------------------------------------------------------------
+  */
+
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
@@ -170,12 +402,22 @@ function ChatBox() {
     }
   };
 
-  // Remove audio
+  /*
+  |--------------------------------------------------------------------------
+  | REMOVE AUDIO
+  |--------------------------------------------------------------------------
+  */
+
   const removeAudio = () => {
     setAudio(null);
   };
 
-  // Send message
+  /*
+  |--------------------------------------------------------------------------
+  | SEND MESSAGE
+  |--------------------------------------------------------------------------
+  */
+
   async function sendMessage() {
     if (
       !text.trim() &&
@@ -186,252 +428,414 @@ function ChatBox() {
       return;
     }
 
+    if (isSending) return;
+
     setIsSending(true);
     setSendError("");
 
     try {
       const formData = new FormData();
-      formData.append("text", text.trim());
-      images.forEach((file) => formData.append("media", file));
-      if (audio) formData.append("media", audio, "voice-message.webm");
-      if (sharedPost) formData.append("shared_post_id", sharedPost._id);
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/messages/${userId}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      formData.append(
+        "text",
+        text.trim()
+      );
+
+      images.forEach((file) => {
+        formData.append("media", file);
       });
+
+      if (audio) {
+        formData.append(
+          "media",
+          audio,
+          "voice-message.webm"
+        );
+      }
+
+      if (sharedPost) {
+        formData.append(
+          "shared_post_id",
+          sharedPost._id
+        );
+      }
+
+      const token =
+        localStorage.getItem("token");
+
+      const response = await fetch(
+        `/api/messages/${userId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Unable to send message");
+        throw new Error(
+          data.message ||
+            "Unable to send message"
+        );
       }
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        ...data.messages,
-      ]);
+      /*
+       * Add newly created messages without duplicates.
+       */
+      setMessages((currentMessages) => {
+        const messageMap = new Map();
+
+        currentMessages.forEach((message) => {
+          messageMap.set(
+            String(message._id),
+            message
+          );
+        });
+
+        (data.messages || []).forEach(
+          (message) => {
+            messageMap.set(
+              String(message._id),
+              message
+            );
+          }
+        );
+
+        return Array.from(
+          messageMap.values()
+        ).sort(
+          (a, b) =>
+            new Date(a.createdAt) -
+            new Date(b.createdAt)
+        );
+      });
+
       setText("");
       setImages([]);
       setAudio(null);
       setSharedPost(null);
-      navigate(location.pathname, { replace: true, state: {} });
+
+      navigate(location.pathname, {
+        replace: true,
+        state: {},
+      });
     } catch (error) {
+      console.error(
+        "Send message error:",
+        error
+      );
+
       setSendError(error.message);
     } finally {
       setIsSending(false);
     }
   }
 
-  // Scroll to latest message
+  /*
+  |--------------------------------------------------------------------------
+  | SCROLL TO LATEST MESSAGE
+  |--------------------------------------------------------------------------
+  */
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
   }, [messages]);
 
-  // Cleanup microphone
+  /*
+  |--------------------------------------------------------------------------
+  | CLEANUP MICROPHONE
+  |--------------------------------------------------------------------------
+  */
+
   useEffect(() => {
     return () => {
       if (audioStreamRef.current) {
         audioStreamRef.current
           .getTracks()
-          .forEach((track) => track.stop());
+          .forEach((track) =>
+            track.stop()
+          );
       }
     };
   }, []);
 
+  /*
+  |--------------------------------------------------------------------------
+  | CLEANUP AUDIO / VIDEO PREVIEWS
+  |--------------------------------------------------------------------------
+  */
+
+  const getPreviewUrl = (file) => {
+    return URL.createObjectURL(file);
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
+
+  if (loadError) {
+    return (
+      <div className="p-6 text-red-500">
+        {loadError}
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen text-slate-500">
+        Loading chat...
+      </div>
+    );
+  }
+
   return (
-    loadError ? (
-      <div className="p-6 text-red-500">{loadError}</div>
-    ) : user && (
-      <div className="flex flex-col h-screen bg-[#efeae2]">
+    <div className="flex flex-col h-screen bg-[#efeae2]">
 
-        {/* User Header */}
-        <div
-          onClick={() =>
-            navigate(`/profile/${user._id}`)
-          }
-          className="flex items-center gap-2 p-2 md:px-10 xl:pl-42
+      {/* =========================================================
+          USER HEADER
+      ========================================================= */}
+
+      <div
+        onClick={() =>
+          navigate(
+            `/profile/${user._id}`
+          )
+        }
+        className="
+          flex items-center gap-2
+          p-2 md:px-10 xl:pl-42
           bg-white border-b border-gray-300
-          cursor-pointer hover:bg-gray-50 transition"
-        >
-          <img
-            src={user.profile_picture}
-            alt=""
-            className="size-8 rounded-full"
-          />
+          cursor-pointer
+          hover:bg-gray-50
+          transition
+        "
+      >
+        <img
+          src={user.profile_picture}
+          alt=""
+          className="size-8 rounded-full object-cover"
+        />
 
-          <div>
-            <p className="font-medium text-slate-800">
-              {user.full_name}
-            </p>
+        <div>
+          <p className="font-medium text-slate-800">
+            {user.full_name}
+          </p>
 
-            <p className="text-sm text-gray-500">
-              @{user.username}
-            </p>
-          </div>
+          <p className="text-sm text-gray-500">
+            @{user.username}
+          </p>
         </div>
+      </div>
 
-        {/* Messages */}
-        <div
-          className="p-5 md:px-10 flex-1 overflow-y-scroll"
-          onScroll={(event) => {
-            if (event.currentTarget.scrollTop < 120) loadOlderMessages();
-          }}
-        >
-          {isLoadingOlder && <p className="mb-3 text-center text-xs text-slate-500">Loading older messages...</p>}
-          <div className="space-y-3 max-w-4xl mx-auto">
+      {/* =========================================================
+          MESSAGES
+      ========================================================= */}
 
-            {messages
-              .toSorted(
-                (a, b) =>
-                  new Date(a.createdAt) -
-                  new Date(b.createdAt)
-              )
-              .map((message, index) => {
+      <div
+        ref={messagesContainerRef}
+        className="
+          p-5 md:px-10
+          flex-1
+          overflow-y-scroll
+        "
+        onScroll={(event) => {
+          if (
+            event.currentTarget.scrollTop <
+            120
+          ) {
+            loadOlderMessages();
+          }
+        }}
+      >
+        {isLoadingOlder && (
+          <p className="mb-3 text-center text-xs text-slate-500">
+            Loading older messages...
+          </p>
+        )}
 
-                const isSent =
-                  message.to_user_id === user._id;
+        <div className="space-y-3 max-w-4xl mx-auto">
 
-                return (
+          {messages
+            .slice()
+            .sort(
+              (a, b) =>
+                new Date(a.createdAt) -
+                new Date(b.createdAt)
+            )
+            .map((message) => {
+
+              /*
+               * If message.to_user_id is current chat user,
+               * then current user sent the message.
+               */
+              const isSent =
+                String(
+                  message.to_user_id
+                ) === String(user._id);
+
+              return (
+                <div
+                  key={message._id}
+                  className={`flex ${
+                    isSent
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
+
                   <div
-                    key={index}
-                    className={`flex ${
-                      isSent
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-
-                    <div
-                      className={`relative max-w-sm px-3 py-2
-                      rounded-lg shadow-sm ${
+                    className={`
+                      relative
+                      max-w-sm
+                      px-3 py-2
+                      rounded-lg
+                      shadow-sm
+                      ${
                         isSent
                           ? "bg-[#d9fdd3] rounded-br-none"
                           : "bg-white rounded-bl-none"
-                      }`}
-                    >
+                      }
+                    `}
+                  >
 
-                      {sharedPost && index === messages.length - 1 && (
+                    {/* =================================================
+                        SHARED POST
+                    ================================================= */}
+
+                    {message.message_type ===
+                      "shared_post" &&
+                      message.shared_post && (
                         <button
                           type="button"
-                          onClick={() => navigate(`/feed?post=${sharedPost._id}`)}
-                          className="mb-1 block w-full overflow-hidden rounded-lg bg-slate-50 text-left hover:bg-slate-100"
+                          onClick={() =>
+                            navigate(
+                              `/feed?post=${message.shared_post._id}`
+                            )
+                          }
+                          className="
+                            mb-1
+                            block
+                            w-full
+                            overflow-hidden
+                            rounded-lg
+                            bg-slate-50
+                            text-left
+                            hover:bg-slate-100
+                          "
                         >
-                          {sharedPost.image_urls?.[0] && (
+                          {message.shared_post
+                            .image_urls?.[0] && (
                             <img
-                              src={sharedPost.image_urls[0]}
+                              src={
+                                message
+                                  .shared_post
+                                  .image_urls[0]
+                              }
                               alt="Shared post"
-                              className="h-32 w-full object-cover"
+                              className="
+                                h-32
+                                w-full
+                                object-cover
+                              "
                             />
                           )}
+
                           <span className="block p-2 text-sm text-slate-700">
-                            {sharedPost.content || "Shared a post with you"}
+                            {message.shared_post
+                              .content ||
+                              "Shared a post with you"}
                           </span>
                         </button>
                       )}
 
-                      {/* Image */}
-                      {message.message_type === "shared_post" && message.shared_post && (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/feed?post=${message.shared_post._id}`)}
-                          className="mb-1 block w-full overflow-hidden rounded-lg bg-slate-50 text-left hover:bg-slate-100"
+                    {/* =================================================
+                        IMAGE
+                    ================================================= */}
+
+                    {message.message_type ===
+                      "image" && (
+                      <img
+                        src={message.media_url}
+                        alt=""
+                        className="
+                          max-w-full
+                          rounded-lg
+                          mb-1
+                        "
+                      />
+                    )}
+
+                    {/* =================================================
+                        VIDEO
+                    ================================================= */}
+
+                    {message.message_type ===
+                      "video" && (
+                      <video
+                        src={message.media_url}
+                        controls
+                        preload="metadata"
+                        className="
+                          max-w-full
+                          rounded-lg
+                          mb-1
+                        "
+                      />
+                    )}
+
+                    {/* =================================================
+                        AUDIO
+                    ================================================= */}
+
+                    {message.message_type ===
+                      "audio" && (
+                      <audio
+                        src={message.media_url}
+                        controls
+                        className="max-w-full"
+                      />
+                    )}
+
+                    {/* =================================================
+                        TEXT
+                    ================================================= */}
+
+                    {message.text && (
+                      <p className="text-sm text-slate-800 break-words">
+                        {message.text}
+                      </p>
+                    )}
+
+                    {/* =================================================
+                        SENT MESSAGE STATUS
+                    ================================================= */}
+
+                    {isSent && (
+                      <div
+                        className="
+                          flex
+                          items-center
+                          justify-end
+                          gap-1
+                          mt-1
+                        "
+                      >
+
+                        <span
+                          className="
+                            text-[10px]
+                            text-gray-500
+                          "
                         >
-                          {message.shared_post.image_urls?.[0] && (
-                            <img
-                              src={message.shared_post.image_urls[0]}
-                              alt="Shared post"
-                              className="h-32 w-full object-cover"
-                            />
-                          )}
-                          <span className="block p-2 text-sm text-slate-700">
-                            {message.shared_post.content || "Shared a post with you"}
-                          </span>
-                        </button>
-                      )}
-
-                      {/* Image */}
-                      {message.message_type ===
-                        "image" && (
-                        <img
-                          src={message.media_url}
-                          alt=""
-                          className="max-w-full rounded-lg mb-1"
-                        />
-                      )}
-
-                      {/* Video */}
-                      {message.message_type ===
-                        "video" && (
-                        <video
-                          src={message.media_url}
-                          controls
-                          className="max-w-full rounded-lg mb-1"
-                        />
-                      )}
-
-                      {/* Audio */}
-                      {message.message_type ===
-                        "audio" && (
-                        <audio
-                          src={message.media_url}
-                          controls
-                          className="max-w-full"
-                        />
-                      )}
-
-                      {/* Text */}
-                      {message.text && (
-                        <p className="text-sm text-slate-800">
-                          {message.text}
-                        </p>
-                      )}
-
-                      {/* Message Time + Read Status */}
-                      {isSent && (
-                        <div
-                          className="flex items-center
-                          justify-end gap-1 mt-1"
-                        >
-
-                          <span className="text-[10px]
-                          text-gray-500">
-                            {message.createdAt
-                              ? new Date(
-                                  message.createdAt
-                                ).toLocaleTimeString(
-                                  [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
-                                )
-                              : ""}
-                          </span>
-
-                          {/* WhatsApp-style ticks */}
-                          {message.seen ? (
-                            <CheckCheck
-                              className="w-4 h-4
-                              text-[#53bdeb]"
-                            />
-                          ) : (
-                            <Check
-                              className="w-4 h-4
-                              text-gray-500"
-                            />
-                          )}
-
-                        </div>
-                      )}
-
-                      {/* Time for received message */}
-                      {!isSent && (
-                        <div className="text-[10px]
-                        text-gray-500 text-right mt-1">
                           {message.createdAt
                             ? new Date(
                                 message.createdAt
@@ -443,33 +847,98 @@ function ChatBox() {
                                 }
                               )
                             : ""}
-                        </div>
-                      )}
+                        </span>
 
-                    </div>
+                        {/* 
+                          Message exists in database = delivered.
+
+                          seen false = gray check
+
+                          seen true = blue double check
+                        */}
+
+                        {message.seen ? (
+                          <CheckCheck
+                            className="
+                              w-4 h-4
+                              text-[#53bdeb]
+                            "
+                          />
+                        ) : (
+                          <Check
+                            className="
+                              w-4 h-4
+                              text-gray-500
+                            "
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* =================================================
+                        RECEIVED MESSAGE TIME
+                    ================================================= */}
+
+                    {!isSent && (
+                      <div
+                        className="
+                          text-[10px]
+                          text-gray-500
+                          text-right
+                          mt-1
+                        "
+                      >
+                        {message.createdAt
+                          ? new Date(
+                              message.createdAt
+                            ).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )
+                          : ""}
+                      </div>
+                    )}
+
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
 
-            <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} />
 
-          </div>
         </div>
+      </div>
 
-        {/* Input Area */}
-        <div className="p-4 bg-[#efeae2]">
-          <div className="w-full max-w-xl mx-auto">
+      {/* =========================================================
+          INPUT AREA
+      ========================================================= */}
 
-            {/* Selected Images/Videos */}
-            {images.length > 0 && (
-              <div
-                className="flex flex-wrap gap-2
-                mb-2 p-2"
-              >
-                {images.map((file, index) => {
+      <div className="p-4 bg-[#efeae2]">
+
+        <div className="w-full max-w-xl mx-auto">
+
+          {/* =======================================================
+              SELECTED IMAGES / VIDEOS
+          ======================================================= */}
+
+          {images.length > 0 && (
+            <div
+              className="
+                flex
+                flex-wrap
+                gap-2
+                mb-2
+                p-2
+              "
+            >
+              {images.map(
+                (file, index) => {
 
                   const previewUrl =
-                    URL.createObjectURL(file);
+                    getPreviewUrl(file);
 
                   return (
                     <div
@@ -483,195 +952,298 @@ function ChatBox() {
                         <video
                           src={previewUrl}
                           controls
-                          className="w-24 h-24
-                          object-cover rounded-lg
-                          border"
+                          className="
+                            w-24
+                            h-24
+                            object-cover
+                            rounded-lg
+                            border
+                          "
                         />
                       ) : (
                         <img
                           src={previewUrl}
                           alt=""
-                          className="w-24 h-24
-                          object-cover rounded-lg
-                          border"
+                          className="
+                            w-24
+                            h-24
+                            object-cover
+                            rounded-lg
+                            border
+                          "
                         />
                       )}
 
-                      {/* Remove */}
                       <button
                         type="button"
                         onClick={() =>
                           removeImage(index)
                         }
-                        className="absolute
-                        -top-2 -right-2
-                        flex items-center
-                        justify-center
-                        w-6 h-6 rounded-full
-                        bg-gray-700 text-white
-                        hover:bg-red-500
-                        cursor-pointer"
+                        className="
+                          absolute
+                          -top-2
+                          -right-2
+                          flex
+                          items-center
+                          justify-center
+                          w-6
+                          h-6
+                          rounded-full
+                          bg-gray-700
+                          text-white
+                          hover:bg-red-500
+                          cursor-pointer
+                        "
                       >
                         <X className="size-4" />
                       </button>
 
                     </div>
                   );
-                })}
-              </div>
-            )}
+                }
+              )}
+            </div>
+          )}
 
-            {/* Audio Preview */}
-            {audio && (
-              <div
-                className="relative flex items-center
-                gap-2 mb-2 p-2 w-fit
-                bg-white rounded-lg shadow"
-              >
+          {/* =======================================================
+              AUDIO PREVIEW
+          ======================================================= */}
 
-                <audio
-                  src={URL.createObjectURL(audio)}
-                  controls
-                />
-
-                <button
-                  type="button"
-                  onClick={removeAudio}
-                  className="flex items-center
-                  justify-center w-7 h-7
-                  rounded-full bg-gray-700
-                  text-white hover:bg-red-500
-                  cursor-pointer"
-                >
-                  <X className="size-4" />
-                </button>
-
-              </div>
-            )}
-
-            {/* Recording Indicator */}
-            {isRecording && (
-              <div
-                className="flex items-center gap-2
-                mb-2 px-3 py-2 w-fit
-                bg-red-50 text-red-500 rounded-lg"
-              >
-                <span
-                  className="w-2 h-2 bg-red-500
-                  rounded-full animate-pulse"
-                />
-
-                <span className="text-sm font-medium">
-                  Recording...
-                </span>
-              </div>
-            )}
-
-            {/* Input Box */}
+          {audio && (
             <div
-              className="flex items-center gap-3
-              px-4 py-2 bg-white
-              border border-gray-200
-              shadow-sm rounded-full"
+              className="
+                relative
+                flex
+                items-center
+                gap-2
+                mb-2
+                p-2
+                w-fit
+                bg-white
+                rounded-lg
+                shadow
+              "
             >
-
-              {/* Image / Video */}
-              <label
-                htmlFor="images"
-                className="cursor-pointer"
-              >
-                <ImageIcon
-                  className="size-6
-                  text-gray-500
-                  hover:text-gray-700"
-                />
-
-                <input
-                  type="file"
-                  id="images"
-                  accept="image/*,video/*"
-                  hidden
-                  multiple
-                  onChange={handleFileChange}
-                />
-              </label>
-
-              {/* Text */}
-              <input
-                type="text"
-                className="flex-1 outline-none
-                text-slate-700"
-                placeholder={
-                  isRecording
-                    ? "Recording..."
-                    : "Type a message..."
-                }
-                disabled={isRecording || isSending}
-                value={text}
-                onChange={(e) =>
-                  setText(e.target.value)
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    sendMessage();
-                  }
-                }}
+              <audio
+                src={URL.createObjectURL(
+                  audio
+                )}
+                controls
               />
 
-              {/* Mic */}
-              {isRecording ? (
-                <button
-                  type="button"
-                  onClick={stopRecording}
-                  className="p-2 rounded-full
-                  bg-red-500 text-white
-                  hover:bg-red-600
-                  active:scale-90 transition
-                  cursor-pointer"
-                >
-                  <Square className="size-5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  className="p-2 rounded-full
-                  text-gray-500
-                  hover:bg-gray-100
-                  active:scale-90 transition
-                  cursor-pointer"
-                >
-                  <Mic className="size-5" />
-                </button>
-              )}
-
-              {/* Send */}
               <button
                 type="button"
-                onClick={sendMessage}
-                disabled={isRecording || isSending}
-                className="p-2 rounded-full
+                onClick={removeAudio}
+                className="
+                  flex
+                  items-center
+                  justify-center
+                  w-7
+                  h-7
+                  rounded-full
+                  bg-gray-700
+                  text-white
+                  hover:bg-red-500
+                  cursor-pointer
+                "
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+
+          {/* =======================================================
+              RECORDING INDICATOR
+          ======================================================= */}
+
+          {isRecording && (
+            <div
+              className="
+                flex
+                items-center
+                gap-2
+                mb-2
+                px-3
+                py-2
+                w-fit
+                bg-red-50
+                text-red-500
+                rounded-lg
+              "
+            >
+              <span
+                className="
+                  w-2
+                  h-2
+                  bg-red-500
+                  rounded-full
+                  animate-pulse
+                "
+              />
+
+              <span className="text-sm font-medium">
+                Recording...
+              </span>
+            </div>
+          )}
+
+          {/* =======================================================
+              INPUT BOX
+          ======================================================= */}
+
+          <div
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-2
+              bg-white
+              border
+              border-gray-200
+              shadow-sm
+              rounded-full
+            "
+          >
+
+            {/* Image / Video */}
+
+            <label
+              htmlFor="images"
+              className="cursor-pointer"
+            >
+              <ImageIcon
+                className="
+                  size-6
+                  text-gray-500
+                  hover:text-gray-700
+                "
+              />
+
+              <input
+                type="file"
+                id="images"
+                accept="image/*,video/*"
+                hidden
+                multiple
+                onChange={handleFileChange}
+              />
+            </label>
+
+            {/* Text */}
+
+            <input
+              type="text"
+              className="
+                flex-1
+                outline-none
+                text-slate-700
+                min-w-0
+              "
+              placeholder={
+                isRecording
+                  ? "Recording..."
+                  : "Type a message..."
+              }
+              disabled={
+                isRecording ||
+                isSending
+              }
+              value={text}
+              onChange={(e) =>
+                setText(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey
+                ) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+            />
+
+            {/* =====================================================
+                MICROPHONE
+            ===================================================== */}
+
+            {isRecording ? (
+              <button
+                type="button"
+                onClick={stopRecording}
+                className="
+                  p-2
+                  rounded-full
+                  bg-red-500
+                  text-white
+                  hover:bg-red-600
+                  active:scale-90
+                  transition
+                  cursor-pointer
+                "
+              >
+                <Square className="size-5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={startRecording}
+                disabled={isSending}
+                className="
+                  p-2
+                  rounded-full
+                  text-gray-500
+                  hover:bg-gray-100
+                  active:scale-90
+                  transition
+                  cursor-pointer
+                  disabled:opacity-40
+                "
+              >
+                <Mic className="size-5" />
+              </button>
+            )}
+
+            {/* =====================================================
+                SEND
+            ===================================================== */}
+
+            <button
+              type="button"
+              onClick={sendMessage}
+              disabled={
+                isRecording ||
+                isSending
+              }
+              className="
+                p-2
+                rounded-full
                 text-gray-700
                 hover:bg-gray-100
                 hover:text-black
                 active:scale-90
-                transition cursor-pointer
-                disabled:opacity-40"
-              >
-                <SendHorizonal className="size-5" />
-              </button>
-
-            </div>
-
-            {sendError && (
-              <p className="mt-2 text-sm text-red-500">{sendError}</p>
-            )}
+                transition
+                cursor-pointer
+                disabled:opacity-40
+              "
+            >
+              <SendHorizonal className="size-5" />
+            </button>
 
           </div>
-        </div>
 
+          {/* Send error */}
+
+          {sendError && (
+            <p className="mt-2 text-sm text-red-500">
+              {sendError}
+            </p>
+          )}
+
+        </div>
       </div>
-    )
+    </div>
   );
 }
 

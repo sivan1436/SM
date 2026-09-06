@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import moment from "moment";
 import StoryModel from "./CreateStory.jsx";
-import StoryViewer from "./StoryViewer.jsx";
+import StoryViewer from "./Storyviewer.jsx";
 
 const getUserId = (user) => user?._id || user?.id || user;
 

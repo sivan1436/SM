@@ -3,7 +3,6 @@ import { Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 
 function ProfileEdit({ user, setUser, setShowEdit }) {
-
     const [editform, setEditform] = useState({
         username: user.username,
         bio: user.bio,
@@ -15,6 +14,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
 
     async function handleSaveProfile(e) {
         e.preventDefault();
+
         const token = localStorage.getItem("token");
 
         if (!token || !user?._id) {
@@ -24,32 +24,50 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
 
         try {
             const formData = new FormData();
+
             formData.append("full_name", editform.full_name);
             formData.append("username", editform.username);
             formData.append("bio", editform.bio || "");
             formData.append("location", editform.location || "");
 
             if (editform.profile_picture instanceof File) {
-                formData.append("profile_picture", editform.profile_picture);
+                formData.append(
+                    "profile_picture",
+                    editform.profile_picture
+                );
             }
+
             if (editform.cover_photo instanceof File) {
-                formData.append("cover_photo", editform.cover_photo);
+                formData.append(
+                    "cover_photo",
+                    editform.cover_photo
+                );
             }
 
             const response = await fetch(`/api/users/${user._id}`, {
                 method: "PUT",
-                headers: { Authorization: `Bearer ${token}` },
-                body: formData,
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
             });
+
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || "Profile update failed");
+                throw new Error(
+                    data.message || "Profile update failed"
+                );
             }
 
-            localStorage.setItem("user", JSON.stringify(data.user));
+            localStorage.setItem(
+                "user",
+                JSON.stringify(data.user)
+            );
+
             setUser(data.user);
             setShowEdit(false);
+
             toast.success("Profile updated successfully");
         } catch (error) {
             toast.error(error.message);
@@ -57,24 +75,24 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
     }
 
     return (
-        <div className="fixed inset-0 z-110 h-screen overflow-y-scroll bg-black/50">
+        <div className="fixed inset-0 z-[110] bg-black/50 overflow-y-auto">
 
-            <div className="max-w-2xl sm:py-6 mx-auto">
+            <div className="min-h-full flex items-start justify-center p-3 sm:p-6">
 
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="w-full max-w-2xl bg-white rounded-lg shadow p-4 sm:p-6">
 
                     <h1 className="text-2xl font-bold text-gray-900 mb-6">
                         Edit Profile
                     </h1>
 
-                    <form 
-                        className="space-y-4"
+                    <form
+                        className="space-y-5"
                         onSubmit={handleSaveProfile}
                     >
 
                         {/* Profile Picture */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Profile Picture
                             </label>
 
@@ -84,7 +102,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                 id="profile_picture"
                                 hidden
                                 onChange={(e) => {
-                                    const file = e.target.files[0];
+                                    const file = e.target.files?.[0];
 
                                     if (file) {
                                         setEditform({
@@ -95,7 +113,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                 }}
                             />
 
-                            <div className="relative group w-24 h-24">
+                            <div className="relative w-24 h-24">
 
                                 <img
                                     src={
@@ -109,24 +127,31 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                     alt="Profile"
                                 />
 
+                                {/* Pencil always visible on mobile */}
                                 <label
                                     htmlFor="profile_picture"
-                                    className="absolute inset-0 hidden
-                                    group-hover:flex items-center justify-center
-                                    bg-black/30 rounded-full cursor-pointer"
+                                    className="
+                                        absolute bottom-0 right-0
+                                        w-9 h-9
+                                        flex items-center justify-center
+                                        bg-indigo-600
+                                        rounded-full
+                                        cursor-pointer
+                                        shadow-md
+                                        sm:opacity-0
+                                        sm:group-hover:opacity-100
+                                    "
                                 >
-                                    <Pencil className="w-5 h-5 text-white" />
+                                    <Pencil className="w-4 h-4 text-white" />
                                 </label>
 
                             </div>
                         </div>
 
                         {/* Cover Photo */}
-                        <div className="flex flex-col items-start gap-3">
+                        <div>
 
-                            <label
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Cover Photo
                             </label>
 
@@ -136,7 +161,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                 id="cover_photo"
                                 hidden
                                 onChange={(e) => {
-                                    const file = e.target.files[0];
+                                    const file = e.target.files?.[0];
 
                                     if (file) {
                                         setEditform({
@@ -147,7 +172,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                 }}
                             />
 
-                            <div className="relative group/cover">
+                            <div className="relative w-full sm:w-60">
 
                                 <img
                                     src={
@@ -157,84 +182,169 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                             )
                                             : editform.cover_photo
                                     }
-                                    className="w-60 h-40 rounded-lg bg-gradient-to-r
-                                    from-indigo-200 via-purple-200 to-pink-200
-                                    object-cover mt-2"
+                                    className="
+                                        w-full
+                                        sm:w-60
+                                        h-40
+                                        rounded-lg
+                                        object-cover
+                                        bg-gradient-to-r
+                                        from-indigo-200
+                                        via-purple-200
+                                        to-pink-200
+                                    "
                                     alt="Cover"
                                 />
 
+                                {/* Pencil always visible on mobile */}
                                 <label
                                     htmlFor="cover_photo"
-                                    className="absolute inset-0 hidden
-                                    group-hover/cover:flex
-                                    bg-black/20 rounded-lg
-                                    items-center justify-center
-                                    cursor-pointer"
+                                    className="
+                                        absolute bottom-2 right-2
+                                        w-9 h-9
+                                        flex items-center justify-center
+                                        bg-indigo-600
+                                        rounded-full
+                                        cursor-pointer
+                                        shadow-md
+                                    "
                                 >
-                                    <Pencil className="w-5 h-5 text-white" />
+                                    <Pencil className="w-4 h-4 text-white" />
                                 </label>
 
                             </div>
+                        </div>
 
-                        </div>
+                        {/* Name */}
                         <div>
-                            <label htmlFor="" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700">
                                 Name
-                                <input type="text" 
-                                className="w-full p-3 border border-gray-200"
-                                onChange={(e)=>setEditform({...editform,full_name :e .target.value})}
-                                value={editform.full_name} placeholder="Enter your full name "/>
+
+                                <input
+                                    type="text"
+                                    className="w-full mt-1 p-3 border border-gray-200 rounded-lg"
+                                    onChange={(e) =>
+                                        setEditform({
+                                            ...editform,
+                                            full_name: e.target.value
+                                        })
+                                    }
+                                    value={editform.full_name}
+                                    placeholder="Enter your full name"
+                                />
                             </label>
                         </div>
+
+                        {/* Username */}
                         <div>
-                            <label htmlFor="" className="block text-sm font-medium text-gray-700 mb-1">
-                                username
-                                <input type="text" 
-                                className="w-full p-3 border border-gray-200"
-                                onChange={(e)=>setEditform({...editform,username :e .target.value})}
-                                value={editform.username} placeholder="Enter your username "/>
+                            <label className="block text-sm font-medium text-gray-700">
+                                Username
+
+                                <input
+                                    type="text"
+                                    className="w-full mt-1 p-3 border border-gray-200 rounded-lg"
+                                    onChange={(e) =>
+                                        setEditform({
+                                            ...editform,
+                                            username: e.target.value
+                                        })
+                                    }
+                                    value={editform.username}
+                                    placeholder="Enter your username"
+                                />
                             </label>
                         </div>
+
+                        {/* Location */}
                         <div>
-                            <label htmlFor="" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700">
                                 Location
-                                <input  type=' text' 
-                                className="w-full p-3 border border-gray-200 rounded-lg"
-                                onChange={(e)=>setEditform({...editform,location : e.target.value})}
-                                value={editform.location} placeholder="enter your location" />
+
+                                <input
+                                    type="text"
+                                    className="w-full mt-1 p-3 border border-gray-200 rounded-lg"
+                                    onChange={(e) =>
+                                        setEditform({
+                                            ...editform,
+                                            location: e.target.value
+                                        })
+                                    }
+                                    value={editform.location}
+                                    placeholder="Enter your location"
+                                />
                             </label>
                         </div>
+
+                        {/* Bio */}
                         <div>
-                            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700">
                                 Bio
+
                                 <textarea
-                                    id="bio"
-                                    className="w-full resize-y rounded-lg border border-gray-200 p-3"
+                                    className="w-full mt-1 resize-y rounded-lg border border-gray-200 p-3"
                                     rows="3"
                                     maxLength="500"
-                                    onChange={(e) => setEditform({ ...editform, bio: e.target.value })}
+                                    onChange={(e) =>
+                                        setEditform({
+                                            ...editform,
+                                            bio: e.target.value
+                                        })
+                                    }
                                     value={editform.bio}
                                     placeholder="Tell people a little about yourself"
                                 />
                             </label>
                         </div>
 
-                       <div className="flex justify-end space-x-3 pt-6">
-                        <button
-                          type="button"
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => setShowEdit(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition cursor-pointer"
-                        >
-                          Save Changes
-                        </button>
-                       </div>
-                     </form>
+                        {/* Buttons */}
+                        <div className="
+                            flex
+                            justify-end
+                            gap-3
+                            pt-4
+                            pb-2
+                            sticky
+                            bottom-0
+                            bg-white
+                            border-t
+                            border-gray-100
+                        ">
+
+                            <button
+                                type="button"
+                                className="
+                                    px-5 py-2.5
+                                    border border-gray-300
+                                    rounded-lg
+                                    text-gray-700
+                                    hover:bg-gray-50
+                                    cursor-pointer
+                                "
+                                onClick={() => setShowEdit(false)}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="submit"
+                                className="
+                                    px-5 py-2.5
+                                    bg-gradient-to-r
+                                    from-indigo-500
+                                    to-purple-600
+                                    text-white
+                                    rounded-lg
+                                    hover:from-indigo-600
+                                    hover:to-purple-700
+                                    cursor-pointer
+                                "
+                            >
+                                Save Changes
+                            </button>
+
+                        </div>
+
+                    </form>
 
                 </div>
 

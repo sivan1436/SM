@@ -90,7 +90,8 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                         onSubmit={handleSaveProfile}
                     >
 
-                        {/* Profile Picture */}
+                        {/*  PROFILE PICTURE  */}
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Profile Picture
@@ -113,7 +114,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                 }}
                             />
 
-                            <div className="relative w-24 h-24">
+                            <div className="relative group w-24 h-24">
 
                                 <img
                                     src={
@@ -127,7 +128,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                     alt="Profile"
                                 />
 
-                                {/* Pencil always visible on mobile */}
+                                {/* Profile Pencil */}
                                 <label
                                     htmlFor="profile_picture"
                                     className="
@@ -138,6 +139,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                         rounded-full
                                         cursor-pointer
                                         shadow-md
+                                        opacity-100
                                         sm:opacity-0
                                         sm:group-hover:opacity-100
                                     "
@@ -148,7 +150,9 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                             </div>
                         </div>
 
-                        {/* Cover Photo */}
+
+                        {/*  COVER PHOTO  */}
+
                         <div>
 
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -172,7 +176,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                 }}
                             />
 
-                            <div className="relative w-full sm:w-60">
+                            <div className="relative group/cover w-full sm:w-60">
 
                                 <img
                                     src={
@@ -196,7 +200,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                     alt="Cover"
                                 />
 
-                                {/* Pencil always visible on mobile */}
+                                {/* Cover Pencil */}
                                 <label
                                     htmlFor="cover_photo"
                                     className="
@@ -207,6 +211,9 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                         rounded-full
                                         cursor-pointer
                                         shadow-md
+                                        opacity-100
+                                        sm:opacity-0
+                                        sm:group-hover/cover:opacity-100
                                     "
                                 >
                                     <Pencil className="w-4 h-4 text-white" />
@@ -215,7 +222,9 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                             </div>
                         </div>
 
-                        {/* Name */}
+
+                        {/*     NAME */}
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">
                                 Name
@@ -235,7 +244,9 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                             </label>
                         </div>
 
-                        {/* Username */}
+
+                        {/* USERNAME*/}
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">
                                 Username
@@ -255,7 +266,9 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                             </label>
                         </div>
 
-                        {/* Location */}
+
+                        {/* LOCATION */}
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">
                                 Location
@@ -275,12 +288,15 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                             </label>
                         </div>
 
-                        {/* Bio */}
+
+                        {/*  BIO  */}
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">
                                 Bio
 
                                 <textarea
+                                    id="bio"
                                     className="w-full mt-1 resize-y rounded-lg border border-gray-200 p-3"
                                     rows="3"
                                     maxLength="500"
@@ -296,7 +312,9 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                             </label>
                         </div>
 
-                        {/* Buttons */}
+
+                        {/*  BUTTONS */}
+
                         <div className="
                             flex
                             justify-end

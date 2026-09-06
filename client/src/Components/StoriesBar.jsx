@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import moment from "moment";
-import StoryModel from "./CreateStory";
-import StoryViewer from "./StoryViewer";
+import StoryModel from "./CreateStory.jsx";
+import StoryViewer from "./StoryViewer.jsx";
 
 const getUserId = (user) => user?._id || user?.id || user;
 

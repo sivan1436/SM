@@ -209,7 +209,7 @@ function ChatBox() {
 
     const interval = setInterval(
       refreshMessages,
-      2500
+      500
     );
 
     return () => {

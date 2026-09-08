@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 
 function Messages() {
   const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+  const currentUserId = currentUser?._id || currentUser?.id;
 
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,8 +32,14 @@ function Messages() {
         // New/unseen messages first,
         // then newest conversations.
         const sortedConversations = [...data].sort((a, b) => {
-          const aSeen = a.lastMessage?.seen ?? true;
-          const bSeen = b.lastMessage?.seen ?? true;
+          const aSeen = !(
+            a.lastMessage?.seen === false &&
+            String(a.lastMessage.to_user_id) === String(currentUserId)
+          );
+          const bSeen = !(
+            b.lastMessage?.seen === false &&
+            String(b.lastMessage.to_user_id) === String(currentUserId)
+          );
 
           // Unseen first
           if (aSeen !== bSeen) {
@@ -97,7 +105,8 @@ function Messages() {
 
               const isUnseen =
                 lastMessage &&
-                lastMessage.seen === false;
+                lastMessage.seen === false &&
+                String(lastMessage.to_user_id) === String(currentUserId);
 
               return (
                 <div

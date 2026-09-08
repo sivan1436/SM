@@ -9,7 +9,9 @@ import connectionRoutes from "./Routes/connectionRoutes.js";
 import postRoutes from "./Routes/postRoutes.js";
 import storyRoutes from "./Routes/storyRoutes.js";
 import path from "path";
+import { createServer } from "http";
 import { fileURLToPath } from "url";
+import { initializeSocket } from "./utils/socket.js";
 
 await dotenv.config({ quiet: true });
 if (!process.env.JWT_SECRET) {
@@ -17,10 +19,15 @@ if (!process.env.JWT_SECRET) {
 }
 const PORT = process.env.PORT || 3000;
 const app = express();
+const httpServer = createServer(app);
+app.set("trust proxy", 1);
 const uploadDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "uploads");
 await ConnectDB();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || true,
+  credentials: true,
+}));
 app.use("/uploads", express.static(uploadDirectory));
 app.use("/api/messages", messageRoutes);
 app.use("/api/users",userRoutes)
@@ -57,6 +64,8 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-app.listen(PORT, () => {
+initializeSocket(httpServer);
+
+httpServer.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

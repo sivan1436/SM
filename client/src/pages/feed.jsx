@@ -6,7 +6,9 @@ import Stories from "../Components/StoriesBar";
 import PostCard from "../Components/Postcard";
 import RecentMessages from "../Components/RecentMessages";
 import ReelsViewer from "../Components/ReelsViewer";
-import { Video } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { menuItemsData } from "../assets/assets";
+import { Plus, Video } from "lucide-react";
 
 function Feed() {
   const [Feed, setFeed] = useState([]);
@@ -79,7 +81,7 @@ function Feed() {
 
   return !loading ? (
 
-    <div className="feed-scroll-container h-full overflow-y-scroll no scrollbar py-10 xl:pr-5 flex items-start justify-center xl:gap-8">
+    <div className="feed-scroll-container h-full overflow-y-scroll no scrollbar px-1 py-10 pb-24 xl:pr-5 flex items-start justify-center xl:gap-8 xl:pb-10">
     {showReels && (
       <ReelsViewer
         reels={Feed.filter((post) => post.post_type === "video" && post.image_urls?.[0])}
@@ -96,6 +98,30 @@ function Feed() {
       <Video className="size-5" />
       Reels
     </button>
+    <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-gray-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden" aria-label="Main navigation">
+      {menuItemsData.map(({ to, label, Icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === "/"}
+          className={({ isActive }) => `flex min-w-14 flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium transition ${isActive ? "text-indigo-600" : "text-gray-500 hover:text-gray-900"}`}
+          aria-label={label}
+        >
+          <Icon className="size-5" />
+          <span>{label}</span>
+        </NavLink>
+      ))}
+      <NavLink
+        to="/create-post"
+        className="flex min-w-14 flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium text-gray-500 transition hover:text-gray-900"
+        aria-label="Create post"
+      >
+        <span className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm">
+          <Plus className="size-4" />
+        </span>
+        <span>Create</span>
+      </NavLink>
+    </nav>
     {/* Stories and postlist */}
     <div>
      <Stories />

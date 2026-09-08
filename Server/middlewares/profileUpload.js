@@ -1,21 +1,4 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import multer from "multer";
-
-const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const uploadDirectory = path.resolve(currentDirectory, "../uploads");
-
-fs.mkdirSync(uploadDirectory, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: uploadDirectory,
-  filename: (_req, file, callback) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-    callback(null, `${crypto.randomUUID()}${extension}`);
-  },
-});
 
 const imageOnly = (_req, file, callback) => {
   if (file.mimetype?.startsWith("image/")) {
@@ -27,7 +10,7 @@ const imageOnly = (_req, file, callback) => {
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: imageOnly,
   limits: { fileSize: 5 * 1024 * 1024 },
 });

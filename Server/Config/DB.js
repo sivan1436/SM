@@ -8,13 +8,14 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 dotenv.config({ quiet: true });
 
 async function ConnectDB() {
-    try {
-        await mongoose.connect(`${process.env.MONGO_URI}/Scrink`);
-        console.log("DB has connected");
+    if (!process.env.MONGO_URI) {
+        throw new Error("MONGO_URI is required");
     }
-    catch(error) {
-        console.log(error.message);
-    }
+
+    const mongoUrl = new URL(process.env.MONGO_URI);
+   
+    await mongoose.connect(mongoUrl.toString());
+    console.log("DB has connected");
 };
 
 export default ConnectDB;

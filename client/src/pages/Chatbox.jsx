@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { io } from "socket.io-client";
 import {
   ImageIcon,
   SendHorizonal,
@@ -9,6 +10,20 @@ import {
   Check,
   CheckCheck,
 } from "lucide-react";
+
+function mergeMessages(currentMessages, incomingMessages) {
+  const messageMap = new Map(
+    currentMessages.map((message) => [String(message._id), message])
+  );
+
+  incomingMessages.forEach((message) => {
+    messageMap.set(String(message._id), message);
+  });
+
+  return Array.from(messageMap.values()).sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+  );
+}
 
 function ChatBox() {
   const { userId } = useParams();
@@ -24,6 +39,8 @@ function ChatBox() {
   const [loadError, setLoadError] = useState("");
   const [sendError, setSendError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
   const [olderCursor, setOlderCursor] = useState(null);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
@@ -39,6 +56,8 @@ function ChatBox() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioStreamRef = useRef(null);
+  const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   /*
   |--------------------------------------------------------------------------
@@ -132,6 +151,7 @@ function ChatBox() {
             Authorization: `Bearer ${token}`,
           },
         });
+        socketRef.current?.emit("messages:seen", { userId });
       } catch (error) {
         console.error(
           "Mark messages seen error:",
@@ -147,74 +167,71 @@ function ChatBox() {
 
   /*
   |--------------------------------------------------------------------------
-  | DYNAMIC MESSAGE POLLING
+  | REAL-TIME SOCKET EVENTS
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
-    let cancelled = false;
+    const token = localStorage.getItem("token");
+    if (!token || !userId) return undefined;
 
-    async function refreshMessages() {
-      try {
-        const token = localStorage.getItem("token");
+    const socketUrl = import.meta.env.VITE_SOCKET_URL ||
+      (window.location.hostname === "localhost"
+        ? "http://localhost:4000"
+        : "https://scrink.onrender.com");
+    const socket = io(socketUrl, {
+      auth: { token },
+      transports: ["websocket"],
+    });
+    const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+    const currentUserId = String(currentUser?._id || currentUser?.id || "");
 
-        const response = await fetch(
-          `/api/messages/${userId}?limit=30`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+    socketRef.current = socket;
 
-        const data = await response.json();
+    socket.on("connect", () => {
+      setIsOnline(true);
+      socket.emit("conversation:join", { userId });
+      socket.emit("messages:seen", { userId });
+    });
+    socket.on("disconnect", () => setIsOnline(false));
 
-        if (!response.ok || cancelled) return;
-
-        const incomingMessages = data.messages || [];
-
-        setMessages((currentMessages) => {
-          const messageMap = new Map();
-
-          currentMessages.forEach((message) => {
-            messageMap.set(
-              String(message._id),
-              message
-            );
-          });
-
-          incomingMessages.forEach((message) => {
-            messageMap.set(
-              String(message._id),
-              message
-            );
-          });
-
-          return Array.from(messageMap.values()).sort(
-            (a, b) =>
-              new Date(a.createdAt) -
-              new Date(b.createdAt)
-          );
-        });
-
-        setOlderCursor(data.nextCursor);
-        setHasOlderMessages(data.hasMore);
-      } catch (error) {
-        console.error(
-          "Message refresh error:",
-          error
-        );
+    socket.on("presence:update", ({ userId: changedUserId, status }) => {
+      if (String(changedUserId) === String(userId)) {
+        setIsOnline(status === "online");
       }
-    }
+    });
 
-    const interval = setInterval(
-      refreshMessages,
-      500
-    );
+    socket.on("typing:update", ({ userId: typingUserId, isTyping: typing }) => {
+      if (String(typingUserId) === String(userId)) {
+        setIsTyping(typing);
+      }
+    });
+
+    socket.on("message:new", (message) => {
+      const participants = [message.from_user_id, message.to_user_id].map(String);
+      if (!participants.includes(String(userId)) || !participants.includes(currentUserId)) {
+        return;
+      }
+
+      setMessages((currentMessages) => mergeMessages(currentMessages, [message]));
+
+      if (String(message.from_user_id) === String(userId)) {
+        socket.emit("messages:seen", { userId });
+      }
+    });
+
+    socket.on("messages:seen", ({ userId: seenByUserId }) => {
+      setMessages((currentMessages) => currentMessages.map((message) => (
+        String(message.to_user_id) === String(seenByUserId)
+          ? { ...message, seen: true }
+          : message
+      )));
+    });
 
     return () => {
-      cancelled = true;
-      clearInterval(interval);
+      socket.disconnect();
+      socketRef.current = null;
+      setIsTyping(false);
     };
   }, [userId]);
 
@@ -412,6 +429,19 @@ function ChatBox() {
     setAudio(null);
   };
 
+  const handleTextChange = (event) => {
+    const nextText = event.target.value;
+    setText(nextText);
+
+    if (!socketRef.current?.connected) return;
+
+    socketRef.current.emit("typing:start", { userId });
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socketRef.current?.emit("typing:stop", { userId });
+    }, 900);
+  };
+
   /*
   |--------------------------------------------------------------------------
   | SEND MESSAGE
@@ -432,6 +462,8 @@ function ChatBox() {
 
     setIsSending(true);
     setSendError("");
+    clearTimeout(typingTimeoutRef.current);
+    socketRef.current?.emit("typing:stop", { userId });
 
     try {
       const formData = new FormData();
@@ -631,7 +663,7 @@ function ChatBox() {
           </p>
 
           <p className="text-sm text-gray-500">
-            @{user.username}
+            {isTyping ? "typing..." : isOnline ? "online" : `@${user.username}`}
           </p>
         </div>
       </div>
@@ -1150,9 +1182,7 @@ function ChatBox() {
                 isSending
               }
               value={text}
-              onChange={(e) =>
-                setText(e.target.value)
-              }
+              onChange={handleTextChange}
               onKeyDown={(e) => {
                 if (
                   e.key === "Enter" &&

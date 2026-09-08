@@ -1,6 +1,7 @@
 import User from "../Models/User.js";
 import mongoose from "mongoose";
 import { parseLimit } from "../utils/pagination.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 
 export async function Findusers(req, res) {
   try {
@@ -90,19 +91,20 @@ export async function EditUser(req, res) {
       user.location = location;
     }
 
-    // Render backend URL
-    const baseUrl = "https://sm-1-caf2.onrender.com";
-
     // Profile picture
     if (req.files?.profile_picture?.[0]) {
-      user.profile_picture =
-        `${baseUrl}/uploads/${req.files.profile_picture[0].filename}`;
+      user.profile_picture = await uploadToCloudinary(
+        req.files.profile_picture[0],
+        "scrink/profiles"
+      );
     }
 
     // Cover photo
     if (req.files?.cover_photo?.[0]) {
-      user.cover_photo =
-        `${baseUrl}/uploads/${req.files.cover_photo[0].filename}`;
+      user.cover_photo = await uploadToCloudinary(
+        req.files.cover_photo[0],
+        "scrink/covers"
+      );
     }
 
     const updatedUser = await user.save();

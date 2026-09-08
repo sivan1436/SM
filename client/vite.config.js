@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'https://scrink.onrender.com',
+      '/api': "http://localhost:4000",
     },
   },
 })

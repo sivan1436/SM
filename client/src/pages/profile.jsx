@@ -18,6 +18,10 @@ function Profile() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [peopleView, setPeopleView] = useState(null);
 
+  const isOwnProfile = Boolean(
+    currentUserId && user?._id && currentUserId === String(user._id)
+  );
+
   useEffect(() => {
     async function fetchProfile() {
       try {
@@ -79,13 +83,7 @@ function Profile() {
           <UserProfileInfo
             user={user}
             posts={posts}
-            isOwnProfile={
-              Boolean(
-                currentUserId &&
-                user._id &&
-                currentUserId === String(user._id)
-              )
-            }
+            isOwnProfile={isOwnProfile}
             setShowEdit={setShowEdit}
             onFollowersClick={() => setPeopleView("followers")}
             onFollowingClick={() => setPeopleView("following")}
@@ -122,6 +120,8 @@ function Profile() {
                 <PostCard
                   key={post._id}
                   post={post}
+                  canDelete={isOwnProfile}
+                  onDelete={(postId) => setPosts((current) => current.filter((item) => item._id !== postId))}
                 />
               ))}
             </div>

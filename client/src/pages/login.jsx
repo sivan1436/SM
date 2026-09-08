@@ -1,5 +1,6 @@
 import { useState } from "react";
 import assets from "../assets/assets.js";
+import sidebarLogo from "../assets/sidebar-logo.svg";
 import { ArrowRight, LoaderCircle, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -64,7 +65,7 @@ const Login = () => {
 
           {/* Logo */}
           <img
-            src={assets.logo}
+            src={sidebarLogo}
             alt="Logo"
             className="h-12 object-contain"
           />

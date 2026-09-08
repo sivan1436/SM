@@ -2,6 +2,8 @@ import Message from "../Models/Messages.js";
 import User from "../Models/User.js";
 import Post from "../Models/Posts.js";
 import mongoose from "mongoose";
+import { emitMessage } from "../utils/socket.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 import {
   cursorFilter,
   decodeCursor,
@@ -386,9 +388,7 @@ export async function sendMessage(req, res) {
         from_user_id: req.user.id,
         to_user_id: userId,
         message_type: messageType,
-        media_url: `${req.protocol}://${req.get(
-          "host"
-        )}/uploads/${file.filename}`,
+        media_url: await uploadToCloudinary(file, "scrink/messages"),
         seen: false,
       });
     }
@@ -404,6 +404,8 @@ export async function sendMessage(req, res) {
           "full_name username profile_picture is_verified",
       },
     });
+
+    createdMessages.forEach(emitMessage);
 
     return res.status(201).json({
       success: true,

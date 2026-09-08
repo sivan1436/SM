@@ -1,6 +1,7 @@
 import Story from "../Models/Stories.js";
 import mongoose from "mongoose";
 import { cursorFilter, decodeCursor, paginatedResult, parseLimit } from "../utils/pagination.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 
 const storyUserFields = "full_name username profile_picture is_verified";
 
@@ -49,7 +50,7 @@ export async function createStory(req, res) {
 			? file.mimetype.startsWith("video/") ? "video" : "image"
 			: "text";
 		const mediaUrl = file
-			? `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+			? await uploadToCloudinary(file, "scrink/stories")
 			: "";
 
 		const story = await Story.create({

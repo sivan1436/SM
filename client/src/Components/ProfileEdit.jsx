@@ -122,7 +122,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                             ? URL.createObjectURL(
                                                 editform.profile_picture
                                             )
-                                            : editform.profile_picture
+                                            : editform.profile_picture || null
                                     }
                                     className="w-24 h-24 rounded-full object-cover"
                                     alt="Profile"
@@ -184,7 +184,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                             ? URL.createObjectURL(
                                                 editform.cover_photo
                                             )
-                                            : editform.cover_photo
+                                            : editform.cover_photo || null
                                     }
                                     className="
                                         w-full

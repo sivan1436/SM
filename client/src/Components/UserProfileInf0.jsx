@@ -20,7 +20,7 @@ function UserProfileInfo({
         {/* Profile Picture */}
         <div className="absolute -top-16 h-32 w-32 rounded-full border-4 border-white shadow-lg">
           <img
-            src={user.profile_picture}
+            src={user.profile_picture || null}
             className="h-full w-full rounded-full object-cover"
             alt={user.full_name || "Profile"}
           />

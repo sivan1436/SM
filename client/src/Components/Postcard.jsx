@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { BadgeCheck, Heart, MessageSquare, Send, Share2Icon, X } from "lucide-react";
+import { BadgeCheck, Heart, MessageSquare, Send, Share2Icon, Trash2, X } from "lucide-react";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-function PostCard({ post }) {
+function PostCard({ post, canDelete = false, onDelete }) {
   const currentUser = JSON.parse(localStorage.getItem("user") || "null");
   const currentUserId = currentUser?._id || currentUser?.id;
+  const postUser = post?.user || {};
+  const imageUrls = (post?.image_urls || []).filter(Boolean);
 
   const [likes, setLikes] = useState(
     typeof post.likes_count === "number" ? post.likes_count : post.likes_count?.length || 0
@@ -22,6 +24,7 @@ function PostCard({ post }) {
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [shareUsers, setShareUsers] = useState([]);
   const [isLoadingShareUsers, setIsLoadingShareUsers] = useState(false);
@@ -121,29 +124,69 @@ function PostCard({ post }) {
       toast.error(error.message || "Post could not be shared");
     }
   };
+
+  const handleDelete = async () => {
+    if (!canDelete || isDeleting) return;
+    if (!window.confirm("Delete this post permanently?")) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/posts/${post._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Post could not be deleted");
+      onDelete?.(post._id);
+      toast.success("Post deleted");
+    } catch (error) {
+      toast.error(error.message || "Post could not be deleted");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const navigate = useNavigate();
 
   return (
     <div id={`post-${post._id}`} className="bg-white rounded-xl shadow p-4 w-full max-w-2xl">
 
       {/* User Information */}
-      <div  onClick={()=>navigate('/profile/'+post.user._id)} className="flex items-center gap-3 cursor-pointer">
+      <div className="flex items-center justify-between gap-3">
+        <div
+          onClick={() => postUser._id && navigate(`/profile/${postUser._id}`)}
+          className={`flex items-center gap-3 ${postUser._id ? "cursor-pointer" : ""}`}
+        >
         <img
-          src={post.user.profile_picture}
+          src={postUser.profile_picture || null}
           alt=""
+          onError={(event) => { event.currentTarget.style.visibility = "hidden"; }}
           className="w-10 h-10 rounded-full shadow"
         />
 
         <div>
           <div className="flex items-center space-x-1">
-            <span>{post.user.full_name}</span>
-            <BadgeCheck className="w-4 h-4 text-blue-500" />
+            <span>{postUser.full_name || "Unknown user"}</span>
+            {postUser.is_verified && <BadgeCheck className="w-4 h-4 text-blue-500" />}
           </div>
 
           <div className="text-gray-500 text-sm">
-            @{post.user.username} · {moment(post.createdAt).fromNow()}
+            {postUser.username ? `@${postUser.username} · ` : ""}{moment(post.createdAt).fromNow()}
           </div>
         </div>
+        </div>
+        {canDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="rounded-full p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Delete post"
+            title="Delete post"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -155,9 +198,9 @@ function PostCard({ post }) {
       )}
 
       {/* Images */}
-      {post.image_urls?.length > 0 && (
+      {imageUrls.length > 0 && (
         <div className="grid grid-cols-2 gap-2 mt-4">
-          {post.image_urls.map((img, index) => (
+          {imageUrls.map((img, index) => (
             post.post_type === "video" ? (
               <video key={index} src={img} controls preload="metadata" className="w-full h-48 object-cover rounded-lg" />
             ) : (
@@ -165,9 +208,10 @@ function PostCard({ post }) {
                 key={index}
                 src={img}
                 alt="Post media"
+                onError={(event) => { event.currentTarget.style.display = "none"; }}
                 loading="lazy"
                 className={`w-full h-48 object-cover rounded-lg ${
-                  post.image_urls.length === 1 ? "col-span-2 h-auto" : ""
+                    imageUrls.length === 1 ? "col-span-2 h-auto" : ""
                 }`}
               />
             )
@@ -211,8 +255,9 @@ function PostCard({ post }) {
             {comments.map((comment) => (
               <div key={comment._id} className="flex gap-2 text-sm">
                 <img
-                  src={comment.user?.profile_picture}
+                  src={comment.user?.profile_picture || null}
                   alt=""
+                  onError={(event) => { event.currentTarget.style.visibility = "hidden"; }}
                   className="h-7 w-7 rounded-full object-cover"
                 />
                 <div className="min-w-0 rounded-lg bg-gray-50 px-3 py-2">

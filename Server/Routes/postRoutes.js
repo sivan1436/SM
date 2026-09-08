@@ -3,6 +3,7 @@ import {
 	addComment,
 	getComments,
 	createPost,
+	deletePost,
 	getFeeds,
 	sharePost,
 	toggleLike,
@@ -18,5 +19,6 @@ route.patch("/:postId/like", authMiddleware, toggleLike);
 route.post("/:postId/comments", authMiddleware, addComment);
 route.get("/:postId/comments", authMiddleware, getComments);
 route.post("/:postId/share", authMiddleware, sharePost);
+route.delete("/:postId", authMiddleware, deletePost);
 
 export default route;

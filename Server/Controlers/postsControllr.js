@@ -1,6 +1,7 @@
 import Post from "../Models/Posts.js";
 import mongoose from "mongoose";
 import { cursorFilter, decodeCursor, paginatedResult, parseLimit } from "../utils/pagination.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 
 const postPopulation = { path: "user", select: "full_name username profile_picture is_verified" };
 
@@ -131,6 +132,30 @@ export async function sharePost(req, res) {
     }
 }
 
+export async function deletePost(req, res) {
+    try {
+        if (!mongoose.isValidObjectId(req.params.postId)) {
+            return res.status(400).json({ success: false, message: "Invalid post id" });
+        }
+
+        const deletedPost = await Post.findOneAndDelete({
+            _id: req.params.postId,
+            user: req.user.id,
+        });
+
+        if (!deletedPost) {
+            return res.status(404).json({
+                success: false,
+                message: "Post not found or you are not allowed to delete it",
+            });
+        }
+
+        return res.json({ success: true, postId: deletedPost._id });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Post could not be deleted" });
+    }
+}
+
 export async function createPost(req, res) {
     try {
         const content = typeof req.body.content === "string" ? req.body.content.trim() : "";
@@ -143,8 +168,8 @@ export async function createPost(req, res) {
             });
         }
 
-        const imageUrls = files.map(
-            (file) => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+        const imageUrls = await Promise.all(
+            files.map((file) => uploadToCloudinary(file, "scrink/posts"))
         );
         const hasVideo = files.some((file) => file.mimetype.startsWith("video/"));
         const post = await Post.create({

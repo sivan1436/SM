@@ -103,7 +103,7 @@ function CreatePost() {
           {/* user */}
           <div className="flex items-center gap-3">
             <img
-              src={user.profile_picture}
+              src={user?.profile_picture || null}
               alt=""
               className="w-12 h-12 rounded-full shadow"
             />

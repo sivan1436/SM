@@ -37,6 +37,10 @@ const Layout = () => {
     };
   }, []);
 
+  const mobileMenuItems = menuItemsData.filter(({ to }) => to !== "/connections");
+  const firstMobileMenuItems = mobileMenuItems.slice(0, 2);
+  const remainingMobileMenuItems = mobileMenuItems.slice(2);
+
   return user ?(
     <div className = "w-full flex h-screen">
 
@@ -46,7 +50,7 @@ const Layout = () => {
       </div>
       {showReels && <ReelsViewer reels={reels} onClose={() => setShowReels(false)} />}
       <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-gray-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden" aria-label="Main navigation">
-        {menuItemsData.map(({ to, label, Icon }) => (
+        {firstMobileMenuItems.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -69,6 +73,19 @@ const Layout = () => {
           <Video className="size-5" />
           <span>Reels</span>
         </button>
+        {remainingMobileMenuItems.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            onClick={() => setSideBarOpen(false)}
+            className={({ isActive }) => `flex min-w-14 flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium transition ${isActive ? "text-indigo-600" : "text-gray-500 hover:text-gray-900"}`}
+            aria-label={label}
+          >
+            <Icon className="size-5" />
+            <span>{label}</span>
+          </NavLink>
+        ))}
         <NavLink
           to="/create-post"
           className="flex min-w-14 flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium text-gray-500 transition hover:text-gray-900"

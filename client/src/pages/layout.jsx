@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../Components/sidebar.jsx";
 import { useEffect, useState } from "react";
 import { Menu, Plus, Video, X } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { dummyUserData } from "../assets/assets.js";
 import Loading from "../Components/loading.jsx";
 import { menuItemsData } from "../assets/assets.js";
@@ -14,6 +14,8 @@ const Layout = () => {
   const [reels, setReels] = useState([]);
   const [showReels, setShowReels] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isChatBox = location.pathname.startsWith("/messages/");
   const user = dummyUserData
 
   useEffect(() => {
@@ -45,11 +47,11 @@ const Layout = () => {
     <div className = "w-full flex h-screen">
 
       <Sidebar sideBarOpen={SideBarOpen} setSideBarOpen={setSideBarOpen}/>
-      <div className="relative flex-1 bg-slate-50 pb-16 xl:pb-0">
+      <div className={`relative flex-1 bg-slate-50 ${isChatBox ? "" : "pb-16 xl:pb-0"}`}>
         <Outlet />
       </div>
       {showReels && <ReelsViewer reels={reels} onClose={() => setShowReels(false)} />}
-      <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-gray-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden" aria-label="Main navigation">
+      {!isChatBox && <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-gray-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden" aria-label="Main navigation">
         {firstMobileMenuItems.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
@@ -96,7 +98,7 @@ const Layout = () => {
           </span>
           <span>Create</span>
         </NavLink>
-      </nav>
+      </nav>}
       {
         SideBarOpen ? 
         <X className = "absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow

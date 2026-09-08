@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { LoaderCircle, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 function ProfileEdit({ user, setUser, setShowEdit }) {
+    const navigate = useNavigate();
+    const [isSaving, setIsSaving] = useState(false);
     const [editform, setEditform] = useState({
         username: user.username,
         bio: user.bio,
@@ -14,13 +17,18 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
 
     async function handleSaveProfile(e) {
         e.preventDefault();
+        if (isSaving) return;
 
         const token = localStorage.getItem("token");
 
-        if (!token || !user?._id) {
+        const userId = user?._id || user?.id;
+
+        if (!token || !userId) {
             toast.error("Please sign in again to edit your profile.");
             return;
         }
+
+        setIsSaving(true);
 
         try {
             const formData = new FormData();
@@ -44,7 +52,7 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                 );
             }
 
-            const response = await fetch(`/api/users/${user._id}`, {
+            const response = await fetch(`/api/users/${userId}`, {
                 method: "PUT",
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -67,15 +75,24 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
 
             setUser(data.user);
             setShowEdit(false);
+            navigate("/profile", { replace: true });
 
             toast.success("Profile updated successfully");
         } catch (error) {
             toast.error(error.message);
+        } finally {
+            setIsSaving(false);
         }
     }
 
     return (
         <div className="fixed inset-0 z-[110] bg-black/50 overflow-y-auto">
+            {isSaving && (
+                <div className="fixed inset-x-0 top-0 z-[120] flex items-center justify-center gap-2 bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+                    <LoaderCircle className="size-4 animate-spin" />
+                    Updating profile...
+                </div>
+            )}
 
             <div className="min-h-full flex items-start justify-center p-3 sm:p-6">
 
@@ -339,12 +356,14 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                     cursor-pointer
                                 "
                                 onClick={() => setShowEdit(false)}
+                                disabled={isSaving}
                             >
                                 Cancel
                             </button>
 
                             <button
                                 type="submit"
+                                disabled={isSaving}
                                 className="
                                     px-5 py-2.5
                                     bg-gradient-to-r
@@ -354,10 +373,10 @@ function ProfileEdit({ user, setUser, setShowEdit }) {
                                     rounded-lg
                                     hover:from-indigo-600
                                     hover:to-purple-700
-                                    cursor-pointer
+                                    cursor-pointer disabled:cursor-not-allowed disabled:opacity-60
                                 "
                             >
-                                Save Changes
+                                {isSaving ? "Updating..." : "Save Changes"}
                             </button>
 
                         </div>

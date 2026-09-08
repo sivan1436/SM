@@ -57,7 +57,7 @@ export async function EditUser(req, res) {
     const { full_name, username, bio, location } = req.body;
 
     // Make sure the logged-in user owns this profile
-    if (req.user.id !== id) {
+    if (String(req.user.id) !== String(id)) {
       return res.status(403).json({
         success: false,
         message: "You are not allowed to edit this profile",

@@ -24,7 +24,11 @@ export async function getFeeds(req, res) {
     try {
         const limit = parseLimit(req.query.limit);
         const cursor = decodeCursor(req.query.cursor);
-        const posts = await Post.find(cursorFilter(cursor))
+        const filters = cursorFilter(cursor);
+        if (req.query.post_type) {
+            filters.post_type = req.query.post_type;
+        }
+        const posts = await Post.find(filters)
             .select("user content image_urls post_type likes_count comments shares_count createdAt")
             .populate(postPopulation)
             .sort({ createdAt: -1, _id: -1 })

@@ -1,4 +1,3 @@
-import react from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../Components/sidebar.jsx";
 import { useEffect, useState } from "react";
@@ -21,18 +20,31 @@ const Layout = () => {
   useEffect(() => {
     let isMounted = true;
 
-    fetch("/api/posts?limit=50", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (isMounted && data.success) {
-          setReels(data.posts.filter((post) => post.post_type === "video" && post.image_urls?.[0]));
-        }
-      })
-      .catch(() => {});
+    async function loadReels() {
+      const loadedReels = [];
+      let cursor = null;
+      try {
+        do {
+          const query = new URLSearchParams({ limit: "50", post_type: "video" });
+          if (cursor) query.set("cursor", cursor);
+          const response = await fetch(`/api/posts?${query}`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+            },
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message);
+          loadedReels.push(...data.posts.filter((post) => post.image_urls?.[0]));
+          cursor = data.hasMore ? data.nextCursor : null;
+        } while (cursor);
+
+        if (isMounted) setReels(loadedReels);
+      } catch {
+        if (isMounted) setReels([]);
+      }
+    }
+
+    loadReels();
 
     return () => {
       isMounted = false;
